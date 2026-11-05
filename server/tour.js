@@ -2,7 +2,7 @@
 // after TOUR_FILL_MS (60 s). Entry fees are paid on the phone (the game economy is client-side); the server decides the
 // bracket, runs every match on its normal rooms, and sends prizes (champion) and the runner-up refund (2x fee).
 const crypto=require('crypto');const store=require('./store.js');
-const FILL_MS=+process.env.TOUR_FILL_MS||+process.env.QUICK_MS||60000,NEXT_MS=+process.env.TOUR_NEXT_MS||4000;
+const FILL_MS=+process.env.TOUR_FILL_MS||60000;
 const CUPS={
  bronze:{name:'Bronze Cup',mode:'quick',fee:{coins:500},prize:{coins:3000}},
  silver:{name:'Silver Cup',mode:'classic',fee:{coins:2000},prize:{coins:12000}},
