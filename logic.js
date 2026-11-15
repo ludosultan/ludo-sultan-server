@@ -34,7 +34,7 @@ function legal(g,pi,ti,d){const p=g.tokens[pi][ti];if(!canMove(p,d))return false
  const from=p<0?0:p+1,to=p<0?0:p+d;for(let q=from;q<=Math.min(to,50);q++)if(blockAt(g,pi,trackIdx(c,q)))return false;return true;}
 function movable(g,pi,d){return g.tokens[pi].map((p,i)=>legal(g,pi,i,d)?i:-1).filter(i=>i>=0);}
 // call after a roll: returns {forfeit,moves}
-const REROLL_COSTS=[3,8,15,25,40];function rerollCost(n){return REROLL_COSTS[Math.min(Math.max(n|0,0),REROLL_COSTS.length-1)]}
+const REROLL_COSTS=[3,6,10,15,25,40,60,80,100,130,160,200,250];function rerollCost(n){return REROLL_COSTS[Math.min(Math.max(n|0,0),REROLL_COSTS.length-1)]}
 function spendReroll(bal,n){const c=rerollCost(n);if(!(bal>=c))return null;return {cost:c,bal:bal-c,n:n+1}}
 function onRoll(g,d){if(d===6)g.sixes=(g.sixes||0)+1;else g.sixes=0;if(g.sixes>=3){return {forfeit:true,moves:[]};}return {forfeit:false,moves:movable(g,g.turn,d)};}
 // call after turn action: extra=bool from applyMove (false if no move)
@@ -88,7 +88,7 @@ function useDie(g,pi,di,ti){const d=g.queue[di];const miss=missedKills(g,pi,ti,d
  if(miss.length){res.penalty=[];miss.forEach(tj=>{const p=g.tokens[pi][tj];if(p>=0&&p<=50){g.tokens[pi][tj]=-1;res.penalty.push(tj)}});}
  const bonus=!res.done&&(res.captured.length>0||res.finished||!!res.arrow);if(bonus)g.bonus=(g.bonus||0)+1;res.bonus=bonus;return res;}
 // queue resolved (empty or no options): bonus roll for same player, else next turn. returns next turn index
-function endDice(g){g.queue=[];if(over(g))return -1;if(g.bonus&&!g.rank.includes(g.turn)){g.bonus--;g.sixes=0;return g.turn;}g.bonus=0;g.sixes=0;return nextTurn(g);}
+function endDice(g){g.queue=[];if(g.rerolls)for(const k in g.rerolls)g.rerolls[k]=0;if(over(g))return -1;if(g.bonus&&!g.rank.includes(g.turn)){g.bonus--;g.sixes=0;return g.turn;}g.bonus=0;g.sixes=0;return nextTurn(g);}
 function aiChoose(g,pi){const os=options(g,pi);if(!os.length)return null;let b=os[0],bs=-1e9;const K=isKill(g);for(const o of os){let s=aiScore(g,pi,o.ti,o.d)+o.d*0.3;if(K){if(capAt(g,pi,o.ti,o.d))s+=400;else s-=missedKills(g,pi,o.ti,o.d).reduce((a,tj)=>a+150+g.tokens[pi][tj]*3,0);}if(s>bs){bs=s;b=o;}}return b;}
 
 const L={isKill,capAt,missedKills,qInit,rollPush,options,canUse,useDie,endDice,aiChoose,aiScore,HOME_ARROW,arrowDest,isBlitz,BLITZ_TURNS,BLITZ_PTS,REROLL_COSTS,rerollCost,spendReroll,ARROWS,isArrow,arrowHit,isTeam,ally,target,homeCount,winTeam,standings,legal,onRoll,advance,blockAt,COLORS,TRACK,START,SAFE,HOMECOL,BASE,trackIdx,cellOf,canMove,newGame,movable,applyMove,nextTurn,over,aiPick};

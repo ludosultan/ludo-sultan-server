@@ -18,7 +18,7 @@ module.exports=function(ctx){const {clients,send,fids,fidOf}=ctx;
  function online(fid){const u=U(fid);const c=u&&clients.get(u.pid);return !!(c&&c.ws&&c.ws.readyState===1)}
  function toFid(fid,m){const u=U(fid);const c=u&&clients.get(u.pid);if(c&&c.ws)send(c.ws,m);return !!(c&&c.ws&&c.ws.readyState===1)}
  function setHw(u,h){u.hw={pts:Math.max(0,Math.min(1e7,h.pts|0)),games:Math.max(0,Math.min(1e5,h.games|0)),wins:Math.max(0,Math.min(1e5,h.wins|0))}}
-function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return {fid:u.fid,name:u.name,avatar:u.avatar,level:u.level,wins:u.wins,games:u.games,caps:u.caps,best:u.best,cc:u.cc||'',frame:u.frame,skin:u.skin||null,online:online(u.fid),club:cl?{id:cl.id,name:cl.name,badge:cl.badge}:null,
+function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return {fid:u.fid,name:u.name,avatar:u.avatar,level:u.level,wins:u.wins,games:u.games,caps:u.caps,best:u.best,cc:u.cc||'',kills:u.kills|0,deaths:u.deaths|0,sg:u.sg|0,sw:u.sw|0,mono:u.mono|0,frame:u.frame,skin:u.skin||null,online:online(u.fid),club:cl?{id:cl.id,name:cl.name,badge:cl.badge}:null,
   friend:viewer?viewer.friends.includes(u.fid):false,pending:viewer?viewer.reqOut.includes(u.fid):false,incoming:viewer?viewer.reqIn.includes(u.fid):false,blocked:viewer?viewer.blocked.includes(u.fid):false}}
  function blockedEither(a,b){return (a.blocked||[]).includes(b.fid)||(b.blocked||[]).includes(a.fid)}
  function social(u){return {t:'social',me:pub(u),friends:u.friends.map(f=>pub(U(f),u)).filter(Boolean),reqIn:u.reqIn.map(f=>pub(U(f),u)).filter(Boolean),reqOut:u.reqOut.slice(),blocked:u.blocked.map(f=>pub(U(f),u)).filter(Boolean),
@@ -55,7 +55,7 @@ function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return
    switch(m.t){
     case 'prof':{const p=m.prof||{};u.level=Math.max(1,Math.min(999,p.level|0||1));u.wins=Math.max(0,p.wins|0);u.games=Math.max(0,p.games|0);u.frame=String(p.frame||'none').slice(0,16);
      // 3.10.0 profile popup + Halloween contest
-     u.caps=Math.max(0,p.caps|0);u.best=Math.max(0,Math.min(9999,p.best|0));u.cc=/^[A-Z]{2}$/.test(p.cc||'')?p.cc:'';if(p.hw)setHw(u,p.hw);persist();return true}
+     u.caps=Math.max(0,p.caps|0);u.best=Math.max(0,Math.min(9999,p.best|0));u.kills=Math.max(0,Math.min(1e7,p.kills|0));u.deaths=Math.max(0,Math.min(1e7,p.deaths|0));u.sg=Math.max(0,Math.min(1e7,p.sg|0));u.sw=Math.max(0,Math.min(1e7,p.sw|0));u.mono=Math.max(1,Math.min(100,p.mono|0||1));u.cc=/^[A-Z]{2}$/.test(p.cc||'')?p.cc:'';if(p.hw)setHw(u,p.hw);persist();return true}
     case 'hwscore':setHw(u,m);persist();return true;
     // 3.11.0 generic seasonal events (Festival of Lights = 'fol26')
     case 'evscore':{const ev=String(m.ev||'');if(!/^[a-z0-9]{2,12}$/.test(ev))return true;u.ev=u.ev||{};u.ev[ev]={pts:Math.max(0,Math.min(1e7,m.pts|0)),games:Math.max(0,Math.min(1e5,m.games|0)),wins:Math.max(0,Math.min(1e5,m.wins|0))};persist();return true}

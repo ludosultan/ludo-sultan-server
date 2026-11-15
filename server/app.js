@@ -43,7 +43,8 @@ const A6={newGame:r=>L6.newGame(r.size,{mode:'solo',shift:0}),init:g=>{g.queue=g
 const LG=r=>r.six?A6:A4;
 function norm(r,pi,o){o=o||{};const m={ti:Math.max(0,Math.min(3,o.ti|0)),di:Math.max(0,o.di|0)};if(r.six){m.pj=o.pj==null?pi:(o.pj|0);if(m.pj<0||m.pj>=r.g.players.length)m.pj=pi}return m}
 const BOTN=['Bot Leo','Bot Mia','Bot Kai','Bot Zed'];
-const BETS30=[500,2500,10000,50000,100000,250000,1e6,1e7,2.5e7,4e7,1e8];
+const BETS30=[2500,5000,10000,50000,100000,250000,500000,1e6,5e6,1e7,2e7,4e7,8e7,1e8,2.5e8,5e8,1e9];
+const BETS_OK=BETS30.concat([500,2.5e7]); // legacy 3.11 tables still accepted (500, 25M)
 const W30={2:[2],3:[2,1],4:[3,1],5:[3,2],6:[3,2,1]};
 function betPay(r){if(!r.bet||!r.g)return;const order=(LG(r).standings(r.g)||[]);const n=r.size;const team=r.opts&&r.opts.mode==='team';
  const pay={};order.forEach(pi=>pay[pi]=0);
@@ -80,7 +81,7 @@ function schedule(r,extraDelay=0){if(!r.started||(r.phase!=='roll'&&r.phase!=='m
  const ms=a?a+extraDelay:Math.max(0,r.deadline-Date.now())+extraDelay;r.timer=setTimeout(()=>autoAct(r),ms)}
 function autoAct(r){if(r.phase==='roll')doRoll(r);else if(r.phase==='move'){const ch=LG(r).ai(r.g,r.g.turn);if(ch)doMove(r,ch);else endTurn(r)}}
 function beginTurn(r,delay=0,keep=false){if(!keep){r.g.queue=[];r.rerollOpen=false}r.phase='roll';r.dice=0;r.moves=[];r.deadline=Date.now()+TURN_MS+delay;bc(r,stateMsg(r));schedule(r,delay)}
-function endTurn(r){r.rerollOpen=false;LG(r).endDice(r.g);if(LG(r).over(r.g)){finishGame(r,0);return}beginTurn(r)}
+function endTurn(r){r.rerollOpen=false;if(r.rerolls)r.rerolls=r.rerolls.map(()=>0);LG(r).endDice(r.g);if(LG(r).over(r.g)){finishGame(r,0);return}beginTurn(r)}
 const REROLL_WIN=+process.env.REROLL_WIN||2600;
 function canAfford(r,pi){if(r.six)return false;const s=r.seats[pi];const c=s&&!s.bot&&clients.get(s.pid);return c&&c.diamonds>=L.rerollCost((r.rerolls||[])[pi]|0)}
 // 3.5.5 dice queue: 6 -> roll again; when rolling ends the player applies queued values in any order
@@ -128,7 +129,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    case 'quick':{// queue key = player count + mode + night mode + house rule (blockade) + bet; only same-key players share a room.
      // 3.11.6: computer players fill empty seats after QUICK_MS (10 s) without enough real players
      const six=(m.size|0)===6;const md=six?'six':MODES.includes(m.mode)?m.mode:'classic';const sz=six?6:md==='team'?4:([2,3,4].includes(m.size|0)?(m.size|0):4);const nt=!!m.night,bl=!six&&!!m.blockade;
-     const bet=BETS30.includes(+m.bet)?(+m.bet):0;const k=qkey(sz,md,nt,bl)+(bet?('|b'+bet):'');
+     const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k=qkey(sz,md,nt,bl)+(bet?('|b'+bet):'');
      if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}
      let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.qkey===k&&x.seats.length<x.size);if(!rr){rr=newRoom(sz,{mode:six?'classic':md,night:nt,blockade:bl,three6:true,six},true);rr.qkey=k;if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}
    case 'start':if(r&&!r.started&&r.host===pid&&!r.tour){while(r.seats.length<(r.opts.mode==='team'?4:2))addBot(r);startGame(r)}break;
