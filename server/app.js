@@ -5,7 +5,8 @@ const L=require(path.join(__dirname,'..','logic.js'));const L6=require(path.join
 const PORT=+process.env.PORT||8080,TURN_MS=+process.env.TURN_MS||10000,BOT_MS=+process.env.BOT_MS||900,
  OFFLINE_MS=+process.env.OFFLINE_MS||1500,QUICK_MS=+process.env.QUICK_MS||10000,ANIM_MS=+process.env.ANIM_MS||1400,NOMOVE_MS=+process.env.NOMOVE_MS||900;
 const ROOT=path.join(__dirname,'..');
-const store=require('./store.js');const LB=new Map();for(const e of (store.get('leaderboard')||[]))if(e&&e.pid)LB.set(e.pid,e);
+const store=require('./store.js');const mg=require('./mg.js');
+const mgApi={};mg.bind(mgApi);const LB=new Map();for(const e of (store.get('leaderboard')||[]))if(e&&e.pid)LB.set(e.pid,e);
 function lbSave(){store.set('leaderboard',[...LB.values()],2000)}
 const MIME={'.html':'text/html','.js':'application/javascript','.png':'image/png','.json':'application/json'};
 const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.split('?')[0]);if(u==='/')u='/index.html';
@@ -58,15 +59,15 @@ function qkey(size,mode,night,blockade){return size+'|'+mode+'|'+(night?1:0)+'|'
 function code(){let c;do c=Math.random().toString(36).slice(2,7).toUpperCase();while(rooms.has(c));return c}
 function send(ws,m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m))}
 function bc(r,m){r.seats.forEach(s=>{if(s.pid&&clients.get(s.pid)&&clients.get(s.pid).room===r.code)send(clients.get(s.pid).ws,m)})}
-function roomInfo(r){return {t:'room',code:r.code,six:!!r.six,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null,public:r.public,size:r.size,host:r.host,started:r.started,opts:r.opts,bet:r.bet||0,fillIn:r.fillAt&&!r.started?Math.max(0,r.fillAt-Date.now()):null,
+function roomInfo(r){return {t:'room',code:r.code,game:r.mg||undefined,mg:r.mg||undefined,six:!!r.six,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null,public:r.public,size:r.size,host:r.host,started:r.started,opts:r.opts,bet:r.bet||0,fillIn:r.fillAt&&!r.started?Math.max(0,r.fillAt-Date.now()):null,
  players:r.seats.map(s=>({fid:s.pid?fidOf(s.pid):null,name:s.name,avatar:s.avatar,tok:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).tok)||s.tok||null,dice:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).dice)||s.dice||null,bot:!!s.bot&&!s.fill,online:s.bot||!!(s.pid&&clients.get(s.pid)&&clients.get(s.pid).ws&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws.readyState===1)}))}}
 function sendRoom(r){r.seats.forEach((s,i)=>{const c=s.pid&&clients.get(s.pid);if(c&&c.room===r.code)send(c.ws,{...roomInfo(r),you:i})})}
 function stateMsg(r){return {t:'state',six:!!r.six,g:r.g,phase:r.phase,dice:r.dice,moves:r.moves,deadline:r.deadline,left:Math.max(0,r.deadline-Date.now()),turnMs:TURN_MS,colors:r.colors}}
 const MODES=['classic','quick','team','arrow','blitz','kill'];
-function newRoom(size,opts,pub){const six=size===6||!!(opts&&opts.six);const md=six?'classic':MODES.includes(opts&&opts.mode)?opts.mode:'classic';if(md==='team')size=4;if(six)size=Math.max(2,Math.min(6,size));const r={code:code(),size,six,opts:{blockade:!six&&!!(opts&&opts.blockade),three6:!!(opts&&opts.three6),mode:md,night:!!(opts&&opts.night),six},public:!!pub,seats:[],host:null,started:false,g:null,phase:'wait',dice:0,moves:[],timer:null,created:Date.now()};rooms.set(r.code,r);return r}
+function newRoom(size,opts,pub){const game=opts&&mg.is(opts.game)&&opts.game;if(game){const r={code:code(),size:mg.size(game),mg:game,opts:{game,mode:game},public:!!pub,seats:[],host:null,started:false,g:null,phase:'wait',timer:null,created:Date.now()};rooms.set(r.code,r);return r}const six=size===6||!!(opts&&opts.six);const md=six?'classic':MODES.includes(opts&&opts.mode)?opts.mode:'classic';if(md==='team')size=4;if(six)size=Math.max(2,Math.min(6,size));const r={code:code(),size,six,opts:{blockade:!six&&!!(opts&&opts.blockade),three6:!!(opts&&opts.three6),mode:md,night:!!(opts&&opts.night),six},public:!!pub,seats:[],host:null,started:false,g:null,phase:'wait',dice:0,moves:[],timer:null,created:Date.now()};rooms.set(r.code,r);return r}
 function joinRoom(c,pid,r){if(c.room&&c.room!==r.code)leaveRoom(pid);let i=r.seats.findIndex(s=>s.pid===pid);
  if(i<0){if(r.started)return send(c.ws,{t:'error',msg:'Game already started'});if(r.seats.length>=r.size)return send(c.ws,{t:'error',msg:'Room is full'});r.seats.push({pid,name:c.name,avatar:c.avatar});if(!r.host)r.host=pid}
- c.room=r.code;sendRoom(r);if(r.started)send(c.ws,stateMsg(r));
+ c.room=r.code;sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else send(c.ws,stateMsg(r))}
  if(!r.started&&r.seats.length===r.size)startGame(r);
  if(r.public&&!r.started&&r.seats.length>=1&&!r.qt){r.fillAt=Date.now()+QUICK_MS;sendRoom(r)}if(r.public&&!r.started&&r.seats.length>=1&&!r.qt)r.qt=setTimeout(()=>{if(!r.started&&r.seats.some(s=>s.pid)){while(r.seats.length<r.size)addFill(r);startGame(r)}},QUICK_MS)}
 function addFill(r){const used=new Set(r.seats.map(s=>s.name));const pool=FILLN.filter(n=>!used.has(n));const name=pool.length?pool[crypto.randomInt(pool.length)]:'Player'+(100+crypto.randomInt(900));r.seats.push({bot:true,fill:true,name,avatar:FILLA[crypto.randomInt(FILLA.length)]})}
@@ -75,9 +76,9 @@ function leaveRoom(pid){const c=clients.get(pid);if(!c||!c.room)return;const r=r
  if(!r.started){r.seats=r.seats.filter(s=>s.pid!==pid);if(r.host===pid)r.host=(r.seats.find(s=>s.pid)||{}).pid||null;if(!r.seats.length){clearTimeout(r.qt);rooms.delete(r.code)}else sendRoom(r)}
  else{const s=r.seats.find(s=>s.pid===pid);if(s){s.bot=true;s.name+=' (left)';s.pid=null}sendRoom(r);schedule(r);cleanup(r)}}
 function cleanup(r){if(r.seats.every(s=>!s.pid)){clearTimeout(r.timer);rooms.delete(r.code)}}
-function startGame(r){clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
+function startGame(r){if(r.mg)return mg.startGame(r);clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
 function isAuto(r,i){const s=r.seats[i];if(s.bot)return BOT_MS;const c=clients.get(s.pid);if(!c||c.room!==r.code||!c.ws||c.ws.readyState!==1)return OFFLINE_MS;if(c.away)return Math.min(OFFLINE_MS,1500);return 0}
-function schedule(r,extraDelay=0){if(!r.started||(r.phase!=='roll'&&r.phase!=='move'))return;clearTimeout(r.timer);const a=isAuto(r,r.g.turn);
+function schedule(r,extraDelay=0){if(r.mg)return mg.schedule(r,extraDelay);if(!r.started||(r.phase!=='roll'&&r.phase!=='move'))return;clearTimeout(r.timer);const a=isAuto(r,r.g.turn);
  const ms=a?a+extraDelay:Math.max(0,r.deadline-Date.now())+extraDelay;r.timer=setTimeout(()=>autoAct(r),ms)}
 function autoAct(r){if(r.phase==='roll')doRoll(r);else if(r.phase==='move'){const ch=LG(r).ai(r.g,r.g.turn);if(ch)doMove(r,ch);else endTurn(r)}}
 function beginTurn(r,delay=0,keep=false){if(!keep){r.g.queue=[];r.rerollOpen=false}r.phase='roll';r.dice=0;r.moves=[];r.deadline=Date.now()+TURN_MS+delay;bc(r,stateMsg(r));schedule(r,delay)}
@@ -118,35 +119,35 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
   if(m.t==='hello'){pid=(typeof m.pid==='string'&&m.pid.length<=40&&m.pid)||crypto.randomUUID();let c=clients.get(pid);
    if(c){if(c.ws&&c.ws!==ws)try{c.ws.close()}catch(e){};c.ws=ws}else{c={ws,room:null};clients.set(pid,c)}
    c.name=String(m.name||'Player').slice(0,16);c.avatar=(a=>/^av:[a-z0-9_]{1,24}$/i.test(a)?a:a.slice(0,4))(String(m.avatar||'🦁'));
-   c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started){send(ws,stateMsg(r));schedule(r);resendOver(r,ws)}}return}
+   c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started){if(r.mg){mg.onJoinStarted(r,c);mg.schedule(r)}else{send(ws,stateMsg(r));schedule(r);resendOver(r,ws)}}}return}
   if(!pid)return;const c=clients.get(pid);const r=c.room&&rooms.get(c.room);
   if(m.t==='ice'){turn.iceFor(pid).then(ice=>{try{send(ws,{t:'ice',servers:ice||[],ttl:turn.TTL})}catch(e){}});return}
   if(m.t==='skin'){const ok=v=>typeof v==='string'&&/^[a-z0-9]{1,16}$/.test(v)?v:'classic';c.tok=ok(m.tok);c.dice=ok(m.dice);try{social.setSkin(pid,c)}catch(e){}
    if(r)sendRoom(r);return}
   switch(m.t){
-   case 'create':{const n=(m.size|0)===6||(m.opts&&m.opts.six)?6:Math.min(4,Math.max(2,m.size|0||4));if(m.opts&&m.night!=null&&m.opts.night==null)m.opts.night=m.night;joinRoom(c,pid,newRoom(n,m.opts,false));break}
+   case 'create':{const gname=mg.is(m.game)?m.game:(m.opts&&mg.is(m.opts.game)&&m.opts.game);if(gname){const rr=newRoom(mg.size(gname),{game:gname},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)rr.bet=bet;joinRoom(c,pid,rr);break}const n=(m.size|0)===6||(m.opts&&m.opts.six)?6:Math.min(4,Math.max(2,m.size|0||4));if(m.opts&&m.night!=null&&m.opts.night==null)m.opts.night=m.night;joinRoom(c,pid,newRoom(n,m.opts,false));break}
    case 'join':{const rr=rooms.get(String(m.code||'').toUpperCase().trim());if(!rr)send(ws,{t:'error',msg:'Room not found'});else joinRoom(c,pid,rr);break}
-   case 'quick':{// queue key = player count + mode + night mode + house rule (blockade) + bet; only same-key players share a room.
+   case 'quick':{if(mg.is(m.game)){const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k='mg|'+m.game+(bet?('|b'+bet):'');if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.mg===m.game&&x.qkey===k&&x.seats.length<x.size);if(!rr){rr=newRoom(mg.size(m.game),{game:m.game},true);rr.qkey=k;if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}// queue key = player count + mode + night mode + house rule (blockade) + bet; only same-key players share a room.
      // 3.11.6: computer players fill empty seats after QUICK_MS (10 s) without enough real players
      const six=(m.size|0)===6;const md=six?'six':MODES.includes(m.mode)?m.mode:'classic';const sz=six?6:md==='team'?4:([2,3,4].includes(m.size|0)?(m.size|0):4);const nt=!!m.night,bl=!six&&!!m.blockade;
      const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k=qkey(sz,md,nt,bl)+(bet?('|b'+bet):'');
      if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}
      let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.qkey===k&&x.seats.length<x.size);if(!rr){rr=newRoom(sz,{mode:six?'classic':md,night:nt,blockade:bl,three6:true,six},true);rr.qkey=k;if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}
-   case 'start':if(r&&!r.started&&r.host===pid&&!r.tour){while(r.seats.length<(r.opts.mode==='team'?4:2))addBot(r);startGame(r)}break;
+   case 'start':if(r&&!r.started&&r.host===pid&&!r.tour){if(r.mg){while(r.seats.length<r.size)addFill(r);startGame(r);break}while(r.seats.length<(r.opts.mode==='team'?4:2))addBot(r);startGame(r)}break;
    case 'addbot':if(r&&!r.started&&r.host===pid&&r.seats.length<r.size){addBot(r);sendRoom(r);if(r.seats.length===r.size)startGame(r)}break;
-   case 'roll':if(r&&r.started&&seatOf(r,pid)===r.g.turn)doRoll(r);break;
+   case 'roll':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}if(r&&r.started&&seatOf(r,pid)===r.g.turn)doRoll(r);break;
    case 'reroll':{if(!(r&&r.started&&r.rerollOpen&&seatOf(r,pid)===r.g.turn&&Date.now()<=r.rerollUntil+400)){send(ws,{t:'rerollDenied',bal:c.diamonds});break}
      const pi=r.g.turn;const sp=L.spendReroll(c.diamonds,r.rerolls[pi]|0);if(!sp){r.rerollOpen=false;send(ws,{t:'rerollDenied',bal:c.diamonds});break}
      c.diamonds=sp.bal;r.rerolls[pi]=sp.n;clearTimeout(r.timer);doRoll(r,{reroll:true,cost:sp.cost,bal:sp.bal,n:sp.n});break}
    case 'gems':c.diamonds=Math.max(0,Math.min(100000,m.diamonds|0));break;
-   case 'move':if(r&&r.started&&seatOf(r,pid)===r.g.turn)doMove(r,{ti:m.ti,di:m.di,pj:m.pj});break;
+   case 'move':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}if(r&&r.started&&seatOf(r,pid)===r.g.turn)doMove(r,{ti:m.ti,di:m.di,pj:m.pj});break;
    case 'chat':if(r){const i=seatOf(r,pid);if(i>=0)bc(r,{t:'chat',pi:i,fid:c.fid,text:social.matchChat(c,m.text)})}break;
    case 'gift':if(r&&r.started){const i=seatOf(r,pid);const to=m.to|0;if(i>=0&&to>=0&&to<r.seats.length&&to!==i)bc(r,{t:'gift',from:i,to,item:String(m.item||'').slice(0,8)})}break;
    case 'away':{c.away=!!m.on;if(r&&r.started){const i=seatOf(r,pid);if(i>=0){bc(r,{t:'away',pi:i,on:!!m.on});schedule(r)}}break}
-   case 'sync':if(r){sendRoom(r);if(r.started){send(ws,stateMsg(r));resendOver(r,ws)}}break;
+   case 'sync':if(r){sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else{send(ws,stateMsg(r));resendOver(r,ws)}}}break;
    case 'presence':{const out={};(Array.isArray(m.fids)?m.fids:[]).slice(0,100).forEach(f=>{f=String(f).toUpperCase();const cp=fids.get(f),cc=cp&&clients.get(cp);out[f]=cc?{online:!!(cc.ws&&cc.ws.readyState===1),name:cc.name,avatar:cc.avatar,playing:!!(cc.room&&rooms.get(cc.room)&&rooms.get(cc.room).started)}:{online:false}});send(ws,{t:'presence',list:out});break}
    case 'challenge':{const tp=fids.get(String(m.to||'').toUpperCase()),tc=tp&&clients.get(tp);if(!tc||!tc.ws||tc.ws.readyState!==1||tp===pid){send(ws,{t:'error',msg:'Friend is offline'});break}
-     const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}
+     if(mg.is(m.game)){const nr=newRoom(mg.size(m.game),{game:m.game},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,game:m.game,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}
    case 'decline':{const rr=rooms.get(String(m.code||''));if(rr&&!rr.started&&rr.host){const hc=clients.get(rr.host);hc&&send(hc.ws,{t:'declined',name:c.name})}break}
    case 'lbpost':{const e={pid,fid:c.fid||'',name:String(m.name||'Player').slice(0,16),av:String(m.av||'').slice(0,4),tr:Math.max(0,Math.min(1e6,m.tr|0)),wins:Math.max(0,m.wins|0),cc:String(m.cc||'').slice(0,3).toUpperCase(),city:String(m.city||'').slice(0,40),t:Date.now()};LB.set(pid,e);lbSave();break}
    case 'lb':{const sc=['local','national','friends','global'].includes(m.scope)?m.scope:'global';let a=[...LB.values()];
@@ -154,12 +155,14 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
     if(sc==='friends'){const f=new Set((Array.isArray(m.fids)?m.fids:[]).slice(0,300).map(x=>String(x).toUpperCase()));f.add(c.fid);a=a.filter(x=>f.has(x.fid))}
     a.sort((x,y)=>y.tr-x.tr);send(ws,{t:'lb',scope:sc,rows:a.slice(0,100).map(({pid:_,...r})=>r)});break}
    case 'leave':leaveRoom(pid);send(ws,{t:'left'});break;
-   default:if(tour.handle(m,pid,c,ws))break;if(accounts.handle(m,pid,c,ws))break;social.handle(m,pid,c,ws);
+   case 'mg':case 'mgact':case 'mgsync':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}send(ws,{t:'mgerr',msg:'not in a mini-game'});break;
+   default:if(r&&r.mg&&mg.handle(m,pid,c,ws,r))break;if(tour.handle(m,pid,c,ws))break;if(accounts.handle(m,pid,c,ws))break;social.handle(m,pid,c,ws);
   }});
  ws.on('close',()=>{const c=pid&&clients.get(pid);if(c&&c.ws===ws){c.ws=null;social.onClose(pid,c);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started)schedule(r)}
    // forget idle clients after 5 min
    setTimeout(()=>{const cc=clients.get(pid);if(cc&&!cc.ws){leaveRoom(pid);clients.delete(pid)}},+process.env.FORGET_MS||300000)}})});
 setInterval(()=>wss.clients.forEach(ws=>{if(!ws.isAlive)return ws.terminate();ws.isAlive=false;ws.ping()}),30000).unref();
+Object.assign(mgApi,{rooms,clients,send,bc:typeof bc==='function'?bc:null,sendRoom,fidOf,seatOf,isAuto,cleanup,social,TURN_MS,BOT_MS,OFFLINE_MS,QUICK_MS,BETS_OK,addFill,addBot,W30});
 server.listen(PORT,()=>console.log('Ludo Sultan server on http://localhost:'+PORT+' (store: '+store.info+')'));
 let stopping=false;function shutdown(){if(stopping)return;stopping=true;const k=setTimeout(()=>process.exit(0),8000);social.flush();store.close().catch(e=>console.error('flush',e.message)).finally(()=>{clearTimeout(k);process.exit(0)})}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
