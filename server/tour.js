@@ -3,6 +3,7 @@
 // bracket, runs every match on its normal rooms, and sends prizes (champion) and the runner-up refund (2x fee).
 const crypto=require('crypto');const store=require('./store.js');
 const FILL_MS=+process.env.TOUR_FILL_MS||60000;
+const NEXT_MS=+process.env.TOUR_NEXT_MS||8000; // delay between tournament rounds (was undefined: ReferenceError)
 const CUPS={
  bronze:{name:'Bronze Cup',mode:'quick',fee:{coins:500},prize:{coins:3000}},
  silver:{name:'Silver Cup',mode:'classic',fee:{coins:2000},prize:{coins:12000}},

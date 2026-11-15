@@ -66,13 +66,13 @@ module.exports=function(ctx){const {send,social}=ctx;
   case 'acc_cfg':send(ws,{t:'acccfg',google:GOOGLE_IDS().length>0,facebook:!!FB_ID()});break;
   case 'acc_signup':{const email=String(m.email||'').trim().toLowerCase(),pw=String(m.pass||''),name=social.cleanName?social.cleanName(m.name):String(m.name||'').slice(0,16);
    if(!EMAIL_RE.test(email))return err(ws,'email','Please enter a valid email','signup'),true;if(pw.length<8||pw.length>128)return err(ws,'pass','Password must be at least 8 characters','signup'),true;
-   if(byEmail.has(email))return err(ws,'exists','An account with this email already exists — log in instead','signup'),true;
+   if(byEmail.has(email))return err(ws,'exists','An account with this email already exists, log in instead','signup'),true;
    // guest linking: the new account owns this device's player id (friends, profile, progress stay)
    const a={id:'a_'+crypto.randomUUID(),prov:'email',email,hash:await hashPw(pw),name:name||c.name,pid,created:Date.now(),sess:[]};
    if(byEmail.has(email))return err(ws,'exists','An account with this email already exists','signup'),true;
    A.set(a.id,a);index(a);const tok=newSession(a);await put(a);c.acct=a.id;ok(ws,a,tok,{created:true,req:'signup'});break}
   case 'acc_login':{const email=String(m.email||'').trim().toLowerCase(),pw=String(m.pass||'');const ck='c:'+pid;
-   if(limited(email)||limited(ck))return err(ws,'limit','Too many attempts — try again in 15 minutes','login'),true;
+   if(limited(email)||limited(ck))return err(ws,'limit','Too many attempts, try again in 15 minutes','login'),true;
    fail(email);fail(ck);// counted before the (slow) hash check so parallel guesses can't slip past the limit
    const a=A.get(byEmail.get(email));const good=a?await checkPw(pw,a.hash):(await hashPw(pw),false);
    if(!good)return err(ws,'wrong','Wrong email or password','login'),true;

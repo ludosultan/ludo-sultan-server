@@ -6,7 +6,7 @@ const PORT=+process.env.PORT||8080,TURN_MS=+process.env.TURN_MS||10000,BOT_MS=+p
  OFFLINE_MS=+process.env.OFFLINE_MS||1500,QUICK_MS=+process.env.QUICK_MS||10000,ANIM_MS=+process.env.ANIM_MS||1400,NOMOVE_MS=+process.env.NOMOVE_MS||900;
 const ROOT=path.join(__dirname,'..');
 const store=require('./store.js');const mg=require('./mg.js');
-const mgApi={};mg.bind(mgApi);const LB=new Map();for(const e of (store.get('leaderboard')||[]))if(e&&e.pid)LB.set(e.pid,e);
+const lbg=require('./lbg.js');const mgApi={};mg.bind(mgApi);const LB=new Map();for(const e of (store.get('leaderboard')||[]))if(e&&e.pid)LB.set(e.pid,e);
 function lbSave(){store.set('leaderboard',[...LB.values()],2000)}
 const MIME={'.html':'text/html','.js':'application/javascript','.png':'image/png','.json':'application/json'};
 const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.split('?')[0]);if(u==='/')u='/index.html';
@@ -44,8 +44,8 @@ const A6={newGame:r=>L6.newGame(r.size,{mode:'solo',shift:0}),init:g=>{g.queue=g
 const LG=r=>r.six?A6:A4;
 function norm(r,pi,o){o=o||{};const m={ti:Math.max(0,Math.min(3,o.ti|0)),di:Math.max(0,o.di|0)};if(r.six){m.pj=o.pj==null?pi:(o.pj|0);if(m.pj<0||m.pj>=r.g.players.length)m.pj=pi}return m}
 const BOTN=['Bot Leo','Bot Mia','Bot Kai','Bot Zed'];
-const BETS30=[2500,5000,10000,50000,100000,250000,500000,1e6,5e6,1e7,2e7,4e7,8e7,1e8,2.5e8,5e8,1e9];
-const BETS_OK=BETS30.concat([500,2.5e7]); // legacy 3.11 tables still accepted (500, 25M)
+const BETS30=[500,1000,2500,5000,10000,50000,100000,250000,500000,1e6,5e6,1e7,2e7,4e7,8e7,1e8,2.5e8,5e8,1e9];
+const BETS_OK=BETS30.concat([2.5e7]); // legacy 3.11 table still accepted (25M)
 const W30={2:[2],3:[2,1],4:[3,1],5:[3,2],6:[3,2,1]};
 function betPay(r){if(!r.bet||!r.g)return;const order=(LG(r).standings(r.g)||[]);const n=r.size;const team=r.opts&&r.opts.mode==='team';
  const pay={};order.forEach(pi=>pay[pi]=0);
@@ -149,11 +149,16 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    case 'challenge':{const tp=fids.get(String(m.to||'').toUpperCase()),tc=tp&&clients.get(tp);if(!tc||!tc.ws||tc.ws.readyState!==1||tp===pid){send(ws,{t:'error',msg:'Friend is offline'});break}
      if(mg.is(m.game)){const nr=newRoom(mg.size(m.game),{game:m.game},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,game:m.game,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}
    case 'decline':{const rr=rooms.get(String(m.code||''));if(rr&&!rr.started&&rr.host){const hc=clients.get(rr.host);hc&&send(hc.ws,{t:'declined',name:c.name})}break}
-   case 'lbpost':{const e={pid,fid:c.fid||'',name:String(m.name||'Player').slice(0,16),av:String(m.av||'').slice(0,4),tr:Math.max(0,Math.min(1e6,m.tr|0)),wins:Math.max(0,m.wins|0),cc:String(m.cc||'').slice(0,3).toUpperCase(),city:String(m.city||'').slice(0,40),t:Date.now()};LB.set(pid,e);lbSave();break}
+   case 'lbpost':{const e={pid,fid:c.fid||'',name:String(m.name||'Player').slice(0,16),av:String(m.av||'').slice(0,4),tr:Math.max(0,Math.min(1e6,m.tr|0)),wins:Math.max(0,m.wins|0),cc:String(m.cc||'').slice(0,3).toUpperCase(),city:String(m.city||'').slice(0,40),t:Date.now()};const old=LB.get(pid);e.gm=m.gm?lbg.clean(m.gm):(old&&old.gm)||{};LB.set(pid,e);lbSave();break}
    case 'lb':{const sc=['local','national','friends','global'].includes(m.scope)?m.scope:'global';let a=[...LB.values()];
     if(sc==='national')a=a.filter(x=>x.cc===String(m.cc||'').toUpperCase());if(sc==='local')a=a.filter(x=>x.city&&x.city===String(m.city||''));
     if(sc==='friends'){const f=new Set((Array.isArray(m.fids)?m.fids:[]).slice(0,300).map(x=>String(x).toUpperCase()));f.add(c.fid);a=a.filter(x=>f.has(x.fid))}
     a.sort((x,y)=>y.tr-x.tr);send(ws,{t:'lb',scope:sc,rows:a.slice(0,100).map(({pid:_,...r})=>r)});break}
+   case 'lbg':{const game=lbg.GKEYS.includes(m.game)?m.game:'ludo';const sc=['local','national','friends','global'].includes(m.scope)?m.scope:'global';let a=[...LB.values()];
+    if(sc==='national')a=a.filter(x=>x.cc===String(m.cc||'').toUpperCase());if(sc==='local')a=a.filter(x=>x.city&&x.city===String(m.city||''));
+    if(sc==='friends'){const f=new Set((Array.isArray(m.fids)?m.fids:[]).slice(0,300).map(x=>String(x).toUpperCase()));f.add(String(c.fid||'').toUpperCase());a=a.filter(x=>f.has(String(x.fid||'').toUpperCase()))}
+    send(ws,Object.assign({t:'lbg',game,scope:sc},lbg.top(a,game,pid,100)));break}
+   case 'lbmy':send(ws,{t:'lbmy',ranks:lbg.ranksFor([...LB.values()],pid)});break;
    case 'leave':leaveRoom(pid);send(ws,{t:'left'});break;
    case 'mg':case 'mgact':case 'mgsync':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}send(ws,{t:'mgerr',msg:'not in a mini-game'});break;
    default:if(r&&r.mg&&mg.handle(m,pid,c,ws,r))break;if(tour.handle(m,pid,c,ws))break;if(accounts.handle(m,pid,c,ws))break;social.handle(m,pid,c,ws);
