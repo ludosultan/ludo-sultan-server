@@ -11,6 +11,7 @@ function lbSave(){store.set('leaderboard',[...LB.values()],2000)}
 const MIME={'.html':'text/html','.js':'application/javascript','.png':'image/png','.json':'application/json'};
 const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.split('?')[0]);if(u==='/')u='/index.html';
  if(u==='/health'){res.end('ok');return}
+ try{if(require('./events.js').handle(req,res,u))return}catch(e){console.error('events',e.message);res.statusCode=500;res.end('error');return}
  if(u==='/turn-status'){res.end(require('./turn.js').enabled()?'turn:on':'turn:off');return}
  if(u==='/health/db'){res.setHeader('Content-Type','application/json');store.ping().then(x=>res.end(JSON.stringify(x))).catch(e=>{res.statusCode=500;res.end(JSON.stringify({ok:false,error:'db'}))});return}
  if(u.startsWith('/custom-emoji')){customEmoji(req,res,u);return}
@@ -46,7 +47,7 @@ function norm(r,pi,o){o=o||{};const m={ti:Math.max(0,Math.min(3,o.ti|0)),di:Math
 const BOTN=['Bot Leo','Bot Mia','Bot Kai','Bot Zed'];
 const BETS30=[500,1000,2500,5000,10000,50000,100000,250000,500000,1e6,5e6,1e7,2e7,4e7,8e7,1e8,2.5e8,5e8,1e9];
 const BETS_OK=BETS30.concat([2.5e7]); // legacy 3.11 table still accepted (25M)
-const W30={2:[2],3:[2,1],4:[3,1],5:[3,2],6:[3,2,1]};
+const W30={2:[2],3:[2,1],4:[3,1],5:[3,2],6:[4,2]};
 function betPay(r){if(!r.bet||!r.g)return;const order=(LG(r).standings(r.g)||[]);const n=r.size;const team=r.opts&&r.opts.mode==='team';
  const pay={};order.forEach(pi=>pay[pi]=0);
  if(team){const wt=order[0]%2;const ws=order.filter(pi=>pi%2===wt);const each=Math.floor(r.bet*n/ws.length);ws.forEach(pi=>pay[pi]=each)}

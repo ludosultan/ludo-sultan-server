@@ -24,3 +24,10 @@ Optional: `PG_TABLE` (separate table for tests), `PG_DRIVER=neon-ws` (dev-only, 
 ### 3.11.0 skins
 - Client sends `{t:"skin",tok,dice}` (ids `[a-z0-9]{1,16}`, else `classic`) on connect and on equip; saved in the profile (`skin`), restored on reconnect, and included as `tok`/`dice` on each player in `room` messages so opponents see each other's equipped skins. Unlocks/purchases stay client-side (in-game coins/diamonds only, no trading).
 - Test: `node server/test-skins.js`.
+
+## 3.13: events + admin panel
+- `GET /api/events` (public) returns the live/upcoming events and reward amounts; `POST /api/events/join` counts a player into an event pool.
+- `/admin` is a single page admin (events CRUD with per-language text and free auto-translate, rewards). It needs env vars on Render:
+  `ADMIN_USER`, `ADMIN_PASS_HASH` (format `scrypt$16384$<saltHex>$<hashHex>`), optional `ADMIN_SECRET`. Without them nobody can log in.
+- Event data is stored under the store key `events` (Postgres when DATABASE_URL is set, else `server/data/events.json`).
+- Prize split for normal tables: 2 players winner takes all, 4 players 3/4 and 1/4, 6 players 4/6 and 2/6.

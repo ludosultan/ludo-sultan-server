@@ -88,7 +88,7 @@ function payout(r){
   const draw=(r.mg==='okey'&&r.g&&r.g.winner<0)||(r.mg==='domino'&&r.g&&r.g.winner==null&&r.g.phase==='over');
   if(draw){order.forEach(pi=>pay[pi]=bet)}
   else if(team(r.mg)){const wt=order[0]%2;const ws=order.filter(pi=>pi%2===wt);const each=Math.floor(bet*n/ws.length);ws.forEach(pi=>pay[pi]=each)}
-  else{const W=api.W30||{2:[2],3:[2,1],4:[3,1],5:[3,2],6:[3,2,1]};(W[n]||[n]).forEach((w,k)=>{if(order[k]!=null)pay[order[k]]=bet*w})}
+  else{const W=api.W30||{2:[2],3:[2,1],4:[3,1],5:[3,2],6:[4,2]};(W[n]||[n]).forEach((w,k)=>{if(order[k]!=null)pay[order[k]]=bet*w})}
   r.seats.forEach((s,i)=>{if(s.pid&&api.clients.get(s.pid))api.send(api.clients.get(s.pid).ws,{t:'betPay',bet,pay:pay[i]|0,all:pay})});
   r.mgPay=pay;return pay;
 }

@@ -86,7 +86,8 @@ function missedKills(g,pi,ti,d){if(!isKill(g)||g.noKillRule||capAt(g,pi,ti,d))re
  if(out.length>1){let b=out[0];for(const tj of out)if(g.tokens[pi][tj]>g.tokens[pi][b])b=tj;return [b]}return out;}
 function useDie(g,pi,di,ti){const d=g.queue[di];const miss=missedKills(g,pi,ti,d);g.queue.splice(di,1);const res=applyMove(g,pi,ti,d);res.d=d;res.di=di;
  if(miss.length){res.penalty=[];miss.forEach(tj=>{const p=g.tokens[pi][tj];if(p>=0&&p<=50){g.tokens[pi][tj]=-1;res.penalty.push(tj)}});}
- const bonus=!res.done&&(res.captured.length>0||res.finished||!!res.arrow);if(bonus)g.bonus=(g.bonus||0)+1;res.bonus=bonus;return res;}
+ const nb=res.done?0:res.captured.length+(res.finished?1:0)+(res.arrow?1:0);// 3.13: every kill and every pawn home is its own extra turn
+const bonus=nb>0;if(bonus)g.bonus=(g.bonus||0)+nb;res.bonus=bonus;res.nbonus=nb;return res;}
 // queue resolved (empty or no options): bonus roll for same player, else next turn. returns next turn index
 function endDice(g){g.queue=[];if(g.rerolls)for(const k in g.rerolls)g.rerolls[k]=0;if(over(g))return -1;if(g.bonus&&!g.rank.includes(g.turn)){g.bonus--;g.sixes=0;return g.turn;}g.bonus=0;g.sixes=0;return nextTurn(g);}
 function aiChoose(g,pi){const os=options(g,pi);if(!os.length)return null;let b=os[0],bs=-1e9;const K=isKill(g);for(const o of os){let s=aiScore(g,pi,o.ti,o.d)+o.d*0.3;if(K){if(capAt(g,pi,o.ti,o.d))s+=400;else s-=missedKills(g,pi,o.ti,o.d).reduce((a,tj)=>a+150+g.tokens[pi][tj]*3,0);}if(s>bs){bs=s;b=o;}}return b;}
