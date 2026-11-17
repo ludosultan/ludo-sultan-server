@@ -99,6 +99,7 @@ textarea.in{min-height:64px;resize:vertical}
  <div class="nav" data-s="themes"><i>🎨</i>Themes</div>
  <div class="grp">CONTROL</div>
  <div class="nav" data-s="config"><i>🎛️</i>Config &amp; Flags</div>
+ <div class="nav" data-s="integrity"><i>🔏</i>Play Integrity</div>
  <div class="nav" data-s="mod"><i>🛡️</i>Moderation<em id="repN" class="hide"></em></div>
  <div class="nav" data-s="ota"><i>🚀</i>Live Update (OTA)</div>
  <div class="nav" data-s="audit"><i>🧾</i>Audit Log</div>
@@ -196,6 +197,17 @@ textarea.in{min-height:64px;resize:vertical}
    <div class="row" style="margin-top:12px"><button class="btn r" onclick="otaRollback('builtin')">⟲ Roll back all</button></div>
    <h3 style="margin-top:14px">Recent JS errors</h3><div class="lst mono" id="otaErrs" style="max-height:200px;overflow:auto"></div></div></div>
 </section>
+<section class="sec" id="s-integrity"><div class="top"><div><h1>Play Integrity</h1><p>Google checks that the app is the real Play copy, on a real phone, installed from Play. Start with <b>Log only</b>, watch the numbers for a few days, then switch to <b>Enforce</b>.</p></div></div>
+ <div class="card"><h3>Setup <span id="igState"></span></h3><div class="note" id="igSetup"></div>
+  <div class="row"><div><label>Mode</label><select class="in" id="igMode"><option value="off">Off</option><option value="log">Log only (never blocks)</option><option value="enforce">Enforce (blocks failed checks)</option></select></div>
+   <div><label>A pass is valid for (minutes)</label><input class="in" id="igTtl" type="number" min="1" max="1440"></div><div><label>Max token age (seconds)</label><input class="in" id="igAge" type="number" min="30" max="3600"></div></div>
+  <div class="row"><div><label>Device must be</label><select class="in" id="igDev"><option value="1">Real device (MEETS_DEVICE_INTEGRITY)</option><option value="0">Not checked</option></select></div>
+   <div><label>Install must be</label><select class="in" id="igLic"><option value="1">From Play (LICENSED)</option><option value="0">Not checked</option></select></div>
+   <div><label>Protected actions</label><div id="igActs" style="display:flex;gap:10px;flex-wrap:wrap;padding-top:8px"></div></div></div>
+  <button class="btn g" style="margin-top:12px" onclick="saveIntegrity()">Publish</button></div>
+ <div class="card"><h3>Last 14 days <span id="igTot"></span></h3><div class="tw"><table><thead><tr><th>Day</th><th>Checks</th><th>Pass</th><th>Fail</th><th>No token</th><th>Google errors</th><th>Would block</th><th>Blocked</th><th>App</th><th>Device</th><th>Install</th></tr></thead><tbody id="igDays"></tbody></table></div></div>
+ <div class="card"><h3>Latest checks</h3><div class="tw"><table><thead><tr><th>Time</th><th>Player</th><th>Action</th><th>Result</th><th>App</th><th>Device</th><th>Install</th><th>Why</th><th>Version</th></tr></thead><tbody id="igRecent"></tbody></table></div></div>
+</section>
 <section class="sec" id="s-audit"><div class="top"><div><h1>Audit Log</h1><p>Every admin change, newest first. Undo puts the old value back (claimed gifts are reversed with a correction mail).</p></div><div class="acts"><input class="in" id="auQ" placeholder="Filter" style="width:200px" oninput="renderAudit()"></div></div>
  <div class="card"><div class="tw"><table><thead><tr><th>Time (Madrid)</th><th>By</th><th>Action</th><th>Target</th><th>Change</th><th></th></tr></thead><tbody id="auRows"></tbody></table></div></div>
 </section>
@@ -246,6 +258,7 @@ async function load(s){try{if(s==='dash'){ST.ov=await lo('overview');renderDash(
  else if(s==='themes'){ST.themes=await lo('themes');renderThemes()}
  else if(s==='config'){await loadCfg();renderConfig()}
  else if(s==='mod'){ST.mod=await lo('mod');renderMod()}
+ else if(s==='integrity'){ST.ig=await lo('integrity');renderIntegrity()}
  else if(s==='ota'){ST.ota=await lo('ota');renderOta()}
  else if(s==='audit'){await loadAudit();renderAudit()}
  else if(s==='admins'){renderAdmins()}
@@ -389,6 +402,19 @@ function renderConfig(){const c=ST.cfg.cfg;$('#cfgV').textContent='v'+c.v;const 
  const u=c.update||{};$('#upMin').value=u.minVc||0;$('#upLatest').value=u.latestVc||0;$('#upMsg').value=(u.msg&&u.msg.en)||'';
  $('#varsTa').value=JSON.stringify(c.vars||{},null,2);$('#chatTa').value=((c.chat||{}).blocked||[]).join('\n');
  const B=c.badges||[];$('#bdRows').innerHTML=B.map((b,i)=>`<tr><td>${i+1}</td><td><input class="in bd-n" value="${E(b.n||'')}"></td><td><input class="in bd-g" type="number" min="1" value="${b.g||0}"></td><td><input class="in bd-w" type="number" min="0" max="100" step="1" value="${b.w||0}"></td><td><input class="in bd-k" type="number" min="0" max="100" step="0.1" value="${b.k||0}"></td></tr>`).join('')||'<tr><td colspan=5 class="empty">No badges in config yet</td></tr>'}
+const IGA={claim:'Mail rewards',redeem:'Gift codes',match:'Online matches',purchase:'Purchases (log only)'};
+const igMap=o=>Object.entries(o||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>E(k)+' '+v).join('<br>');
+function renderIntegrity(){const g=ST.ig,s=g.settings;
+ $('#igState').innerHTML=g.configured?`<span class="pill live">${E(g.effective.toUpperCase())}</span>`:'<span class="pill end">NOT CONFIGURED = OFF</span>';
+ $('#igSetup').innerHTML=g.configured?'Server keys are set for '+E(g.pkg)+'.':'Missing on the server: '+[g.cpnSet?'':'PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER',g.saSet?'':'GOOGLE_SA_JSON'].filter(Boolean).join(', ')+'. Until both are set, checks are off whatever mode is chosen.';
+ $('#igMode').value=s.mode;$('#igTtl').value=s.ttlMin;$('#igAge').value=s.maxAgeSec;$('#igDev').value=s.needDevice?'1':'0';$('#igLic').value=s.needLicensed?'1':'0';
+ $('#igActs').innerHTML=Object.keys(IGA).map(k=>`<label style="display:flex;gap:4px;align-items:center;margin:0"><input type="checkbox" class="ig-a" value="${k}" ${s.actions.includes(k)?'checked':''}>${IGA[k]}</label>`).join('');
+ const t=g.tot;$('#igTot').textContent=N(t.total)+' checks · '+N(t.pass)+' pass · '+N(t.fail)+' fail';
+ $('#igDays').innerHTML=g.days.slice().reverse().map(d=>`<tr><td>${E(d.day)}</td><td>${N(d.total)}</td><td>${N(d.pass)}</td><td>${N(d.fail)}</td><td>${N(d.notoken)}</td><td>${N(d.errors)}</td><td>${N(d.wouldBlock)}</td><td>${N(d.blocked)}</td><td style="font-size:11px">${igMap(d.app)}</td><td style="font-size:11px">${igMap(d.dev)}</td><td style="font-size:11px">${igMap(d.lic)}</td></tr>`).join('')||'<tr><td colspan="11">No checks yet</td></tr>';
+ $('#igRecent').innerHTML=g.recent.map(r=>`<tr><td style="white-space:nowrap">${dt(r.t)}</td><td class="mono">${E(r.pid)}</td><td>${E(r.a)}</td><td><span class="pill ${r.pass?'live':'warn'}">${r.pass?'PASS':'FAIL'}</span></td><td>${E(r.app)}</td><td>${E(r.dev)}</td><td>${E(r.lic)}</td><td>${E(r.r)}${r.err?' ('+E(r.err)+')':''}</td><td>${E(r.ver)} ${r.vc?'vc'+r.vc:''}</td></tr>`).join('')||'<tr><td colspan="9">No checks yet</td></tr>'}
+async function saveIntegrity(){const mode=$('#igMode').value;if(mode==='enforce'&&!confirm('Enforce: players who fail the check cannot claim rewards or join online matches. Continue?'))return;
+ const v={mode,ttlMin:+$('#igTtl').value,maxAgeSec:+$('#igAge').value,needDevice:$('#igDev').value==='1',needLicensed:$('#igLic').value==='1',actions:$$('.ig-a').filter(x=>x.checked).map(x=>x.value)};
+ if(await saveCfg('integrity',v)){ST.ig=await lo('integrity');renderIntegrity()}}
 async function saveFlags(){const v={};$$('#flRows .tog').forEach(t=>v[t.dataset.f]=t.classList.contains('on'));if(await saveCfg('flags',v))renderConfig()}
 async function saveMaint(){const on=$('#mtOn').classList.contains('on');if(on&&!confirm('Turn maintenance ON? Online play pauses for everyone.'))return;if(await saveCfg('maintenance',{on,msg:await tr(nodash($('#mtMsg').value)),until:fromIn($('#mtUntil').value),blockOnline:$('#mtBlock').value==='1'}))renderConfig()}
 async function saveUpdate(){if(await saveCfg('update',{minVc:+$('#upMin').value,latestVc:+$('#upLatest').value,msg:await tr(nodash($('#upMsg').value))}))renderConfig()}

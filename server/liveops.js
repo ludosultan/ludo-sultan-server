@@ -3,7 +3,7 @@
 //         GET /api/ota (manifest), GET /api/ota/b/<id>.gz (signed web bundle)
 // Admin:  /admin (panel), /admin/api/login|logout|me, /admin/api/lo/* (owner + support roles, audit log with undo)
 // Rewards are decided by the server: the app only receives grants the server created, each grant can be claimed once per player.
-const crypto=require('crypto'),fs=require('fs'),path=require('path'),zlib=require('zlib'),store=require('./store.js');
+const crypto=require('crypto'),fs=require('fs'),path=require('path'),zlib=require('zlib'),store=require('./store.js'),IG=require('./integrity.js');
 const K='liveops',KP='loplayers';
 const DATA_DIR=process.env.LO_DATA_DIR||path.join(__dirname,'data');
 const LANGS=['en','es','fr','de','zh','ar','ur','hi','bn','tr','pt','id'];
@@ -29,6 +29,7 @@ const DEF_CFG=()=>({v:1,updated:Date.now(),
  vars:{},
  badges:copyBadges(),
  chat:{blocked:[]},
+ integrity:{mode:'log',ttlMin:60,maxAgeSec:300,needDevice:true,needLicensed:true,actions:['claim','redeem','match']},
  mailPoll:300});
 const SKUS=['ls_gems_100','ls_gems_500','ls_gems_1000','ls_gems_2500','ls_gems_5000','ls_gems_10000','ls_coins_10k','ls_coins_30k','ls_coins_100k','ls_coins_250k','ls_coins_1m','ls_coins_2m','ls_starter_pack'];
 const CAP={personalCoins:50e6,personalGems:5e4,audienceCoins:1e5,audienceGems:1000,codeCoins:1e5,codeGems:1000};
@@ -47,7 +48,7 @@ const tx=(o,n)=>{const r={};if(typeof o==='string')o={en:o};LANGS.forEach(l=>{co
 // ---------------- state ----------------
 function S(){let d=store.get(K);if(!d||typeof d!=='object')d={};let ch=false;
  if(!d.cfg){d.cfg=DEF_CFG();ch=true}else{const def=DEF_CFG();for(const k of Object.keys(def))if(d.cfg[k]==null){d.cfg[k]=def[k];ch=true}d.cfg.flags=Object.assign({},def.flags,d.cfg.flags)}
- for(const [k,v] of [['hist',[]],['mail',[]],['codes',{}],['mod',{bans:{},mutes:{},handled:{}}],['audit',[]],['ota',{bundles:[],current:null,staged:null,paused:false,health:{}}],['stats',{days:{}}],['themes',{defs:{},schedule:[]}]])if(!d[k]){d[k]=v;ch=true}
+ for(const [k,v] of [['hist',[]],['mail',[]],['codes',{}],['mod',{bans:{},mutes:{},handled:{}}],['audit',[]],['ota',{bundles:[],current:null,staged:null,paused:false,health:{}}],['stats',{days:{}}],['themes',{defs:{},schedule:[]}],['ig',{days:{},recent:[]}]])if(!d[k]){d[k]=v;ch=true}
  if(ch)store.set(K,d);return d}
 function save(){store.set(K,S(),800)}
 function P(){let p=store.get(KP);if(!p||typeof p!=='object'){p={};store.set(KP,p)}return p}
@@ -137,7 +138,7 @@ function publicConfig(){const d=S(),c=d.cfg,t=now();let ev={events:[],rewards:{}
  return {v:c.v,now:t,flags:c.flags,daily:c.daily,spin:c.spin,store:c.store,
   popups:(c.popups||[]).filter(p=>p.on!==false&&(!p.end||p.end>t)&&(!p.start||p.start-t<14*864e5)),
   maintenance:maintenance(),update:c.update,vars:c.vars,badges:c.badges||copyBadges(),chat:c.chat,mailPoll:c.mailPoll||300,
-  rewards:ev.rewards,events:ev.events,theme:themeNow(),ota:{enabled:!d.ota.paused}}}
+  rewards:ev.rewards,events:ev.events,theme:themeNow(),ota:{enabled:!d.ota.paused},integrity:igPublic(c)}}
 function configJson(){if(now()-cfgCache.at<15e3)return cfgCache;const j=JSON.stringify(publicConfig());cfgCache={at:now(),etag:'"'+sha(j.replace(/"now":\d+,/,'')).slice(0,16)+'"',json:j};return cfgCache}
 function bust(){cfgCache.at=0}
 function publish(by,section,before,summary){const c=S().cfg;S().hist.push({v:c.v,t:now(),by,snap:JSON.parse(JSON.stringify(before))});if(S().hist.length>40)S().hist.shift();c.v++;c.updated=now();save();bust();
@@ -192,7 +193,7 @@ const ipOf=req=>String(req.headers['x-forwarded-for']||req.socket.remoteAddress|
 function cors(res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS')}
 // ---------------- request router ----------------
 function handle(req,res,u){
- if(u.startsWith('/api/')&&/^\/api\/(config|hello|mail|mail\/claim|redeem|telemetry|ota|ota\/b\/[a-z0-9]+\.gz)$/.test(u)){cors(res);if(req.method==='OPTIONS'){res.writeHead(204);res.end();return true}pub(req,res,u).catch(e=>{console.error('liveops',e.message);J(res,500,{error:'server'})});return true}
+ if(u.startsWith('/api/')&&/^\/api\/(config|hello|mail|mail\/claim|redeem|telemetry|integrity|ota|ota\/b\/[a-z0-9]+\.gz)$/.test(u)){cors(res);if(req.method==='OPTIONS'){res.writeHead(204);res.end();return true}pub(req,res,u).catch(e=>{console.error('liveops',e.message);J(res,500,{error:'server'})});return true}
  if(u==='/admin'||u==='/admin/'){res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store','X-Frame-Options':'DENY','Referrer-Policy':'no-referrer',
   'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'"});res.end(require('./admin2-html.js')());return true}
  if(!u.startsWith('/admin/api/'))return false;
@@ -224,13 +225,37 @@ async function pub(req,res,u){const ip=ipOf(req);const q=new URL(req.url,'http:/
  if(u==='/api/hello'){if(rl(ip,'hello',30,60e3))return J(res,429,{error:'slow down'});const r=hello(m,ip);return J(res,r.code,r.body)}
  if(u==='/api/telemetry'){const t=auth(m);if(!t)return J(res,401,{error:'auth'});telemetry(t,m);return J(res,200,{ok:true})}
  const t=auth(m);if(!t)return J(res,401,{error:'auth'});
+ if(u==='/api/integrity'){if(rl(ip,'pi',20,60e3))return J(res,429,{error:'slow down'});return J(res,200,await igReport(t,m))}
  if(u==='/api/mail')return J(res,200,{mail:pending(t.pid,t.p).map(pubMail),banned:banned(t.pid)?true:false});
- if(u==='/api/mail/claim'){if(rl(ip,'claim',60,60e3))return J(res,429,{error:'slow down'});const ids=Array.isArray(m.ids)?m.ids.slice(0,50):[m.id];const out=ids.map(id=>claim(t.pid,t.p,clean(id,20)));return J(res,200,{results:out})}
- if(u==='/api/redeem'){if(!S().cfg.flags.promo)return J(res,200,{ok:false,error:'Gift codes are paused'});return J(res,200,redeem(t.pid,t.p,m.code,ip))}
+ if(u==='/api/mail/claim'){if(rl(ip,'claim',60,60e3))return J(res,429,{error:'slow down'});if(!gate(t.pid,'claim'))return J(res,403,{error:'integrity',msg:'Device check needed'});const ids=Array.isArray(m.ids)?m.ids.slice(0,50):[m.id];const out=ids.map(id=>claim(t.pid,t.p,clean(id,20)));return J(res,200,{results:out})}
+ if(u==='/api/redeem'){if(!gate(t.pid,'redeem'))return J(res,403,{error:'integrity',msg:'Device check needed'});if(!S().cfg.flags.promo)return J(res,200,{ok:false,error:'Gift codes are paused'});return J(res,200,redeem(t.pid,t.p,m.code,ip))}
  J(res,404,{error:'unknown'})}
 function telemetry(t,m){const o=day(),h=S().ota.health;const b=clean(m.bundle,40)||'builtin';const x=h[b]=h[b]||{boots:0,errors:0,rollbacks:0,last:0};
  if(m.boot){o.boots++;x.boots++}const e=int(m.errors,0,50);o.errors+=e;x.errors+=e;if(m.rollback){o.rollbacks++;const rb=clean(m.rollback,40);const y=h[rb]=h[rb]||{boots:0,errors:0,rollbacks:0,last:0};y.rollbacks++}x.last=now();
  if(Array.isArray(m.errs)){S().errs=(S().errs||[]).concat(m.errs.slice(0,3).map(s=>({t:now(),b,s:clean(s,300)}))).slice(-60)}save()}
+// ---------------- Play Integrity (3.14.3): verdict log + gate. Modes off / log (default) / enforce; not configured = off ----------------
+function igPublic(c){const st=IG.settings(c&&c.integrity);const mode=IG.effectiveMode(c&&c.integrity);return mode==='off'?{mode}:{mode,cpn:IG.CPN(),actions:st.actions,ttlMin:st.ttlMin}}
+function igDay(){const g=S().ig,k=dayKey();const o=g.days[k]=g.days[k]||{total:0,pass:0,fail:0,notoken:0,errors:0,blocked:0,wouldBlock:0,app:{},dev:{},lic:{},reasons:{},actions:{}};
+ const ks=Object.keys(g.days).sort();while(ks.length>30)delete g.days[ks.shift()];return o}
+const inc=(o,k)=>{o[k]=(o[k]||0)+1};
+async function igReport(t,m){const cfg=S().cfg.integrity,mode=IG.effectiveMode(cfg);if(mode==='off')return {ok:true,mode,pass:true};
+ const action=IG.ACTIONS.includes(m.action)?m.action:'session';
+ const v=await IG.verify({pid:t.pid,action,ts:m.ts,token:m.token?String(m.token).slice(0,20000):'',err:m.err},cfg);
+ const o=igDay();o.total++;inc(o.actions,action);
+ if(v.pass)o.pass++;else{o.fail++;if(v.reasons[0]==='notoken')o.notoken++;if(v.reasons[0]==='decode')o.errors++}
+ if(v.app)inc(o.app,v.app);if(v.dev)inc(o.dev,v.dev);if(v.lic)inc(o.lic,v.lic);v.reasons.forEach(r=>inc(o.reasons,r));
+ const g=S().ig;g.recent.push({t:now(),pid:t.pid.slice(0,12),a:action,pass:!!v.pass,app:v.app||'',dev:v.dev||'',lic:v.lic||'',r:v.reasons.join(','),err:v.err?clean(v.err,60):'',vc:v.vc||t.p.vc||0,ver:t.p.ver||''});
+ if(g.recent.length>200)g.recent.splice(0,g.recent.length-200);
+ // a failed check never wipes an earlier pass inside its time window (a flaky network should not lock a good player out)
+ if(v.pass)t.p.ig={t:now(),pass:true};else if(!(t.p.ig&&t.p.ig.pass&&now()-t.p.ig.t<IG.settings(cfg).ttlMin*60e3))t.p.ig={t:now(),pass:false,r:v.reasons.join(',')};
+ saveP();save();return {ok:true,mode,pass:!!v.pass,reasons:v.reasons}}
+// true = allow. log mode never blocks (counts what enforce would block); enforce needs a passing verdict within ttlMin.
+function gate(pid,action){try{const cfg=S().cfg.integrity,mode=IG.effectiveMode(cfg);if(mode==='off')return true;const st=IG.settings(cfg);if(!st.actions.includes(action))return true;
+ const p=P()[pid];const okNow=!!(p&&p.ig&&p.ig.pass&&now()-p.ig.t<st.ttlMin*60e3);if(okNow)return true;
+ const o=igDay();if(mode==='enforce'){o.blocked++;save();return false}o.wouldBlock++;save();return true}catch(e){return true}}
+function normIntegrity(x){x=x||{};if(!IG.MODES.includes(x.mode))throw new Error('Mode must be off, log or enforce');
+ return {mode:x.mode,ttlMin:int(x.ttlMin||60,1,1440),maxAgeSec:int(x.maxAgeSec||300,30,3600),needDevice:x.needDevice!==false,needLicensed:x.needLicensed!==false,
+  actions:(Array.isArray(x.actions)?x.actions:['claim','redeem','match']).filter(a=>IG.ACTIONS.includes(a)&&a!=='session')}}
 // ---------------- admin API ----------------
 const OWNER=a=>{if(a.role!=='owner')throw new Error('Owner only')};
 async function adminApi(req,res,r,a){const G=req.method==='GET';const m=G?{}:await body(req,r==='ota/upload'?40e6:300000);if(!G&&!m)throw new Error('Bad request');const d=S();
@@ -251,6 +276,7 @@ async function adminApi(req,res,r,a){const G=req.method==='GET';const m=G?{}:awa
   else if(sec==='maintenance'){c.maintenance={on:!!x.on,msg:tx(x.msg,300),until:+x.until||0,blockOnline:x.blockOnline!==false}}
   else if(sec==='update'){c.update={minVc:int(x.minVc,0,1e6),latestVc:int(x.latestVc,0,1e6),msg:tx(x.msg,300),url:/^https:\/\//.test(x.url||'')?clean(x.url,300):DEF_CFG().update.url}}
   else if(sec==='badges'){c.badges=normBadges(x)}
+  else if(sec==='integrity'){c.integrity=normIntegrity(x)}
   else if(sec==='vars'){if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('Remote values must be an object');const j=JSON.stringify(x);if(j.length>20000)throw new Error('Too big');c.vars=JSON.parse(j)}
   else if(sec==='chat'){c.chat={blocked:(Array.isArray(x.blocked)?x.blocked:String(x.blocked||'').split(/[\n,]+/)).map(s=>clean(s,40).trim().toLowerCase()).filter(Boolean).slice(0,500)}}
   else if(sec==='popups'){c.popups=(Array.isArray(x)?x:[]).slice(0,30).map(normPopup)}
@@ -306,6 +332,9 @@ async function adminApi(req,res,r,a){const G=req.method==='GET';const m=G?{}:awa
   save();bust();audit(a.user,'ota','rollback','Rolled back to '+(to==='builtin'?'built-in copy':to),{type:'ota',before});return ok()}
  case 'ota/pause':{OWNER(a);d.ota.paused=!!m.paused;save();bust();audit(a.user,'ota','pause',m.paused?'Paused live updates':'Resumed live updates',{type:'otapause',was:!m.paused});return ok()}
  case 'themes':return ok({themes:d.themes,now:themeNow(),builtIn:['default']});
+ case 'integrity':{const g=d.ig,days=Object.keys(g.days).sort().slice(-14).map(k=>Object.assign({day:k},g.days[k]));const tot={total:0,pass:0,fail:0,notoken:0,errors:0,blocked:0,wouldBlock:0};
+  days.forEach(x=>{for(const k in tot)tot[k]+=x[k]||0});
+  return ok({configured:IG.configured(),cpnSet:!!IG.CPN(),saSet:!!process.env.GOOGLE_SA_JSON,pkg:IG.PKG(),settings:IG.settings(d.cfg.integrity),effective:IG.effectiveMode(d.cfg.integrity),days,tot,recent:g.recent.slice(-50).reverse()})}
  case 'themes/save':{OWNER(a);const before=JSON.parse(JSON.stringify(d.themes));const s=(Array.isArray(m.schedule)?m.schedule:[]).slice(0,40).map(x=>{const st=+x.start,en=+x.end;if(!st||!en||en<=st)throw new Error('Each theme needs a start and an end date');
    return {id:/^t[a-z0-9]{4,12}$/.test(x.id||'')?x.id:rid('t'),theme:clean(x.theme,24).toLowerCase().replace(/[^a-z0-9_-]/g,'')||'default',name:clean(x.name,40),start:st,end:en,leadDays:int(x.leadDays,0,30),on:x.on!==false,community:clean(x.community||'all',12),banner:x.banner?tx(x.banner,80):null}});
   const defs={};for(const [k,v] of Object.entries(m.defs||{})){const id=k.toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,24);if(!id||id==='default')continue;defs[id]=normThemeDef(v)}
@@ -342,4 +371,4 @@ function undo(e,a){const d=S(),u=e.undo;
 // chat word filter used by the WebSocket server (match chat, DMs, club chat)
 function filterText(t){const L=(S().cfg.chat||{}).blocked||[];if(!L.length||!t)return t;let s=String(t);for(const w of L){if(!w)continue;const re=new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');s=s.replace(re,m=>'*'.repeat(m.length))}return s}
 function flag(k){const f=S().cfg.flags;return !f||f[k]!==false}
-module.exports={flag,handle,bind,banned,muted,maintenance,stat,audit,adminOf,filterText,publicConfig,hello,claim,pending,normGrant,redeem,otaManifest,verifyBundle,totp,totpOk,_S:S,_P:P,FLAGS,CAP,DEF_BADGES,normBadges};
+module.exports={flag,gate,igReport,handle,bind,banned,muted,maintenance,stat,audit,adminOf,filterText,publicConfig,hello,claim,pending,normGrant,redeem,otaManifest,verifyBundle,totp,totpOk,_S:S,_P:P,FLAGS,CAP,DEF_BADGES,normBadges};
