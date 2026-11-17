@@ -65,7 +65,7 @@ function hello(m,ip){const pid=clean(m.pid,40);if(pid.length<8)return {code:400,
  else if(!m.key||sha(String(m.key))!==p.k){// lost key (data cleared / cloud restore on a new phone): an account session that owns this pid can re-key
   const owner=ctx.accounts&&m.token&&ctx.accounts.pidForToken&&ctx.accounts.pidForToken(String(m.token));
   if(owner===pid){key=crypto.randomBytes(18).toString('base64url');p.k=sha(key)}else return {code:409,body:{error:'key',msg:'device key mismatch'}}}
- if(dayKey(p.last)!==dayKey())stat('active');
+ if(!p.last||dayKey(p.last)!==dayKey())stat('active');
  p.last=now();p.ver=clean(m.ver,16);p.vc=int(m.vc,0,1e6);p.bundle=clean(m.bundle,40);p.lang=clean(m.lang,5);p.country=country(m)||p.country||'';p.name=clean(m.name,20)||p.name||'';
  p.fid=crypto.createHash('sha256').update('ls-friend:'+pid).digest('hex').slice(0,6).toUpperCase();p.coins=int(m.coins,0,1e12);p.gems=int(m.gems,0,1e9);p.level=int(m.level,0,9999);p.games=int(m.games,0,1e7);p.ip=sha('ip|'+ip).slice(0,10);
  saveP();const b=banned(pid),mu=muted(pid);
