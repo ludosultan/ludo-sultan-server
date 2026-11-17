@@ -10,7 +10,7 @@ function pgUrl(u){try{const x=new URL(u);x.searchParams.delete('sslmode');x.sear
 async function init(defs){// defs: {key:{file,def,split}}
  Object.entries(defs).forEach(([k,d])=>{files[k]=d.file;split[k]=!!d.split});
  if(URL_){// PG_DRIVER=neon-ws: Neon serverless driver over WebSocket/443 (for networks that block 5432; dev only)
-  const {Pool}=process.env.PG_DRIVER==='neon-ws'?(()=>{const n=require('@neondatabase/serverless');n.neonConfig.webSocketConstructor=require('ws');return n})():require('pg');pool=new Pool({connectionString:pgUrl(URL_),ssl:{rejectUnauthorized:true},max:3,idleTimeoutMillis:30000,connectionTimeoutMillis:20000});
+  const {Pool}=process.env.PG_DRIVER==='neon-ws'?(()=>{const n=require('@neondatabase/serverless');n.neonConfig.webSocketConstructor=require('ws');return n})():require('pg');pool=new Pool({connectionString:pgUrl(URL_),ssl:process.env.PG_SSL==='0'?false:{rejectUnauthorized:true},max:3,idleTimeoutMillis:30000,connectionTimeoutMillis:20000});
   pool.on('error',e=>console.error('pg pool',e.message));
   let err;for(let i=0;i<6;i++){try{await pool.query(`CREATE TABLE IF NOT EXISTS ${TBL}(k text PRIMARY KEY, v jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())`);err=null;break}catch(e){err=e;console.error('pg connect retry',i+1,e.message);await new Promise(r=>setTimeout(r,2000*(i+1)))}}
   if(err)throw err;

@@ -4,10 +4,10 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ev-'));process.env.EVENTS_FILE=p
 const pass='Test-pass-123';const salt=crypto.randomBytes(16);
 process.env.ADMIN_USER='admin';process.env.ADMIN_PASS_HASH='scrypt$16384$'+salt.toString('hex')+'$'+crypto.scryptSync(pass,salt,32,{N:16384,r:8,p:1,maxmem:64*1024*1024}).toString('hex');
 const store=require('./store.js');
-store.init({events:{file:process.env.EVENTS_FILE,def:{events:[],log:[],rewards:{},joins:{}}}}).then(async()=>{
- const ev=require('./events.js');
- const srv=http.createServer((q,s)=>{const u=q.url.split('?')[0];if(!ev.handle(q,s,u)){s.statusCode=404;s.end('nf')}}).listen(0);const port=srv.address().port;
- const rq=(m,p,b,ck)=>new Promise(r=>{const q=http.request({port,method:m,path:p,headers:Object.assign({'Content-Type':'application/json'},ck?{Cookie:ck}:{})},s=>{let d='';s.on('data',c=>d+=c);s.on('end',()=>r({c:s.statusCode,h:s.headers,b:d}))});if(b)q.write(JSON.stringify(b));q.end()});
+store.init({events:{file:process.env.EVENTS_FILE,def:{events:[],log:[],rewards:{},joins:{}}},liveops:{file:path.join(dir,'lo.json'),def:{},split:true},loplayers:{file:path.join(dir,'lop.json'),def:{}}}).then(async()=>{
+ const ev=require('./events.js');const lo=require('./liveops.js');// 3.14: admin auth + CSRF live in liveops.js
+ const srv=http.createServer((q,s)=>{const u=q.url.split('?')[0];if(!lo.handle(q,s,u)&&!ev.handle(q,s,u)){s.statusCode=404;s.end('nf')}}).listen(0);const port=srv.address().port;
+ const rq=(m,p,b,ck)=>new Promise(r=>{const q=http.request({port,method:m,path:p,headers:Object.assign({'Content-Type':'application/json','X-LS-Admin':'1'},ck?{Cookie:ck}:{})},s=>{let d='';s.on('data',c=>d+=c);s.on('end',()=>r({c:s.statusCode,h:s.headers,b:d}))});if(b)q.write(JSON.stringify(b));q.end()});
  assert.equal((await rq('GET','/admin/api/state')).c,401);
  assert.equal((await rq('POST','/admin/api/login',{user:'admin',pass:'bad'})).c,401);
  const l=await rq('POST','/admin/api/login',{user:'admin',pass});assert.equal(l.c,200);const ck=l.h['set-cookie'][0].split(';')[0];

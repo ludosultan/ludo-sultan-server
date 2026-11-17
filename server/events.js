@@ -54,14 +54,25 @@ function handle(req,res,u){
   body(req,m=>{if(!m)return J(res,400,{error:'bad'});const okU=process.env.ADMIN_USER&&crypto.timingSafeEqual(crypto.createHash('sha256').update(String(m.user||'')).digest(),crypto.createHash('sha256').update(process.env.ADMIN_USER).digest());
    if(okU&&verify(m.pass)){fails.delete(ip);res.writeHead(200,{'Content-Type':'application/json','Set-Cookie':'lsadm='+mkToken()+'; HttpOnly; SameSite=Strict; Path=/admin; Max-Age=43200'+(req.headers['x-forwarded-proto']==='https'?'; Secure':'')});res.end('{"ok":true}')}
    else{const f=fails.get(ip)||{n:0,t:0};f.n++;f.t=Date.now();fails.set(ip,f);J(res,401,{error:'Wrong username or password'})}});return true}
- if(!okToken(cookie(req))){J(res,401,{error:'login'});return true}
+ const adm=require('./liveops.js').adminOf(req);if(!adm){J(res,401,{error:'login'});return true}const LO=require('./liveops.js');
  const d=db();
  if(u==='/admin/api/state'&&req.method==='GET'){J(res,200,{events:d.events.map(e=>Object.assign({},e,{pool:pool(e),players:Object.keys(d.joins[e.id]||{}).length})),rewards:d.rewards,log:d.log.slice(-8).reverse(),langs:LANGS,now:Date.now(),user:process.env.ADMIN_USER||''});return true}
  if(u==='/admin/api/translate'&&req.method==='POST'){body(req,async m=>{if(!m||!m.text)return J(res,400,{error:'text'});const langs=(Array.isArray(m.langs)?m.langs:LANGS).filter(l=>LANGS.includes(l));const out={};
   for(const l of langs){out[l]=l==='en'?m.text:await translate(String(m.text).slice(0,300),l)}J(res,200,{out})});return true}
  if(u==='/admin/api/event'&&req.method==='POST'){body(req,m=>{if(!m)return J(res,400,{error:'bad'});const old=m.id&&d.events.find(x=>x.id===m.id);const e=normEvent(m,old);if(!e.name.en)return J(res,400,{error:'English name required'});
-  if(old)Object.assign(old,e);else d.events.push(e);d.log.push({t:Date.now(),m:(old?'Updated ':'Created ')+e.name.en});d.log=d.log.slice(-50);save();J(res,200,{ok:true,id:e.id})});return true}
- if(u==='/admin/api/event/delete'&&req.method==='POST'){body(req,m=>{const i=d.events.findIndex(x=>x.id===(m&&m.id));if(i<0)return J(res,404,{error:'unknown'});d.log.push({t:Date.now(),m:'Deleted '+(d.events[i].name.en||m.id)});d.events.splice(i,1);save();J(res,200,{ok:true})});return true}
- if(u==='/admin/api/rewards'&&req.method==='POST'){body(req,m=>{if(!m)return J(res,400,{error:'bad'});const r=d.rewards;for(const k of Object.keys(DEF_REWARDS)){if(m[k]!=null)r[k]=Math.max(0,Math.min(1e7,m[k]|0))}d.log.push({t:Date.now(),m:'Updated diamond/coin rewards'});save();J(res,200,{ok:true,rewards:r})});return true}
+  const before=old?JSON.parse(JSON.stringify(old)):null;if(old)Object.assign(old,e);else d.events.push(e);LO.audit(adm.user,'event',e.name.en,(old?'Updated event ':'Created event ')+e.name.en,{type:'event',id:e.id,before});d.log.push({t:Date.now(),m:(old?'Updated ':'Created ')+e.name.en});d.log=d.log.slice(-50);save();J(res,200,{ok:true,id:e.id})});return true}
+ if(u==='/admin/api/event/delete'&&req.method==='POST'){body(req,m=>{const i=d.events.findIndex(x=>x.id===(m&&m.id));if(i<0)return J(res,404,{error:'unknown'});d.log.push({t:Date.now(),m:'Deleted '+(d.events[i].name.en||m.id)});LO.audit(adm.user,'event',d.events[i].name.en||m.id,'Deleted event '+(d.events[i].name.en||m.id),{type:'event',id:d.events[i].id,before:JSON.parse(JSON.stringify(d.events[i]))});d.events.splice(i,1);save();J(res,200,{ok:true})});return true}
+ if(u==='/admin/api/rewards'&&req.method==='POST'){body(req,m=>{if(!m)return J(res,400,{error:'bad'});const r=d.rewards;const rb=Object.assign({},r);for(const k of Object.keys(DEF_REWARDS)){if(m[k]!=null)r[k]=Math.max(0,Math.min(1e7,m[k]|0))}d.log.push({t:Date.now(),m:'Updated diamond/coin rewards'});LO.audit(adm.user,'rewards','welcome','Updated welcome/event rewards',{type:'event',rewards:rb});save();J(res,200,{ok:true,rewards:r})});return true}
  J(res,404,{error:'unknown'});return true}
-module.exports={handle,publicConfig,normEvent,join,verify,DEF_REWARDS,LANGS};
+// 3.14 liveops: extend / end now / reopen, and undo support
+function adminExtend(m,user){const d=db(),e=d.events.find(x=>x.id===m.id);if(!e)throw new Error('Unknown event');const before=JSON.parse(JSON.stringify(e));const now=Date.now();
+ if(m.action==='extend'){const days=Math.max(-60,Math.min(365,+m.days||0));if(!days)throw new Error('Days needed');e.end=Math.max(e.start+36e5,e.end+days*864e5);e.active=true}
+ else if(m.action==='end'){e.end=Math.min(e.end,now);}
+ else if(m.action==='pause'){e.active=false}else if(m.action==='resume'){e.active=true}
+ else if(m.action==='setEnd'){const t=+m.end;if(!(t>e.start))throw new Error('End must be after start');e.end=t;e.active=true}
+ else throw new Error('Unknown action');
+ e.updated=now;save();require('./liveops.js').audit(user,'event',e.name.en,({extend:'Extended by '+m.days+' day(s)',end:'Ended now',pause:'Paused (hidden)',resume:'Resumed',setEnd:'New end date'})[m.action]+': '+e.name.en,{type:'event',id:e.id,before});
+ return {event:e}}
+function adminRestore(u){const d=db();if(u.rewards){d.rewards=Object.assign({},u.rewards);save();return}const i=d.events.findIndex(x=>x.id===u.id);
+ if(u.before){if(i>=0)d.events[i]=u.before;else d.events.push(u.before)}else if(i>=0)d.events.splice(i,1);save()}
+module.exports={adminExtend,adminRestore,handle,publicConfig,normEvent,join,verify,DEF_REWARDS,LANGS};

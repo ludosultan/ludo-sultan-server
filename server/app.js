@@ -5,12 +5,13 @@ const L=require(path.join(__dirname,'..','logic.js'));const L6=require(path.join
 const PORT=+process.env.PORT||8080,TURN_MS=+process.env.TURN_MS||10000,BOT_MS=+process.env.BOT_MS||900,
  OFFLINE_MS=+process.env.OFFLINE_MS||1500,QUICK_MS=+process.env.QUICK_MS||10000,ANIM_MS=+process.env.ANIM_MS||1400,NOMOVE_MS=+process.env.NOMOVE_MS||900;
 const ROOT=path.join(__dirname,'..');
-const store=require('./store.js');const mg=require('./mg.js');
+const store=require('./store.js');const mg=require('./mg.js');const LO=require('./liveops.js');
 const lbg=require('./lbg.js');const mgApi={};mg.bind(mgApi);const LB=new Map();for(const e of (store.get('leaderboard')||[]))if(e&&e.pid)LB.set(e.pid,e);
 function lbSave(){store.set('leaderboard',[...LB.values()],2000)}
 const MIME={'.html':'text/html','.js':'application/javascript','.png':'image/png','.json':'application/json'};
 const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.split('?')[0]);if(u==='/')u='/index.html';
  if(u==='/health'){res.end('ok');return}
+ try{if(LO.handle(req,res,u))return}catch(e){console.error('liveops',e.message);res.statusCode=500;res.end('error');return}
  try{if(require('./events.js').handle(req,res,u))return}catch(e){console.error('events',e.message);res.statusCode=500;res.end('error');return}
  if(u==='/turn-status'){res.end(require('./turn.js').enabled()?'turn:on':'turn:off');return}
  if(u==='/health/db'){res.setHeader('Content-Type','application/json');store.ping().then(x=>res.end(JSON.stringify(x))).catch(e=>{res.statusCode=500;res.end(JSON.stringify({ok:false,error:'db'}))});return}
@@ -77,7 +78,7 @@ function leaveRoom(pid){const c=clients.get(pid);if(!c||!c.room)return;const r=r
  if(!r.started){r.seats=r.seats.filter(s=>s.pid!==pid);if(r.host===pid)r.host=(r.seats.find(s=>s.pid)||{}).pid||null;if(!r.seats.length){clearTimeout(r.qt);rooms.delete(r.code)}else sendRoom(r)}
  else{const s=r.seats.find(s=>s.pid===pid);if(s){s.bot=true;s.name+=' (left)';s.pid=null}sendRoom(r);schedule(r);cleanup(r)}}
 function cleanup(r){if(r.seats.every(s=>!s.pid)){clearTimeout(r.timer);rooms.delete(r.code)}}
-function startGame(r){if(r.mg)return mg.startGame(r);clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
+function startGame(r){LO.stat('matches');if(r.mg)return mg.startGame(r);clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
 function isAuto(r,i){const s=r.seats[i];if(s.bot)return BOT_MS;const c=clients.get(s.pid);if(!c||c.room!==r.code||!c.ws||c.ws.readyState!==1)return OFFLINE_MS;if(c.away)return Math.min(OFFLINE_MS,1500);return 0}
 function schedule(r,extraDelay=0){if(r.mg)return mg.schedule(r,extraDelay);if(!r.started||(r.phase!=='roll'&&r.phase!=='move'))return;clearTimeout(r.timer);const a=isAuto(r,r.g.turn);
  const ms=a?a+extraDelay:Math.max(0,r.deadline-Date.now())+extraDelay;r.timer=setTimeout(()=>autoAct(r),ms)}
@@ -113,11 +114,14 @@ const fids=new Map();// public friend code -> pid
 const social=require('./social.js')({clients,send,fids,fidOf,rooms,newRoom:(...a)=>newRoom(...a),joinRoom:(...a)=>joinRoom(...a)});
 function seatOf(r,pid){return r.seats.findIndex(s=>s.pid===pid)}
 const tour=require('./tour.js')({clients,send,rooms,newRoom:(...a)=>newRoom(...a),joinRoom:(...a)=>joinRoom(...a),startGame:(...a)=>startGame(...a),fidOf,FILLN,FILLA});
-const accounts=require('./accounts.js')({send,social});
+const accounts=require('./accounts.js')({send,social});LO.bind({clients,rooms,accounts});
 const turn=require('./turn.js');
 wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAlive=true);
  ws.on('message',buf=>{let m;try{m=JSON.parse(buf)}catch(e){return}
-  if(m.t==='hello'){pid=(typeof m.pid==='string'&&m.pid.length<=40&&m.pid)||crypto.randomUUID();let c=clients.get(pid);
+  if(m.t==='hello'){pid=(typeof m.pid==='string'&&m.pid.length<=40&&m.pid)||crypto.randomUUID();
+    {const bn=LO.banned(pid),mt=LO.maintenance();if(bn){try{ws.send(JSON.stringify({t:'banned',reason:bn.reason||'',until:bn.until||0}))}catch(e){}pid=null;setTimeout(()=>{try{ws.close()}catch(e){}},200);return}
+     if(!mt&&!LO.flag('onlinePlay')){try{ws.send(JSON.stringify({t:'maint',msg:{en:'Online play is paused for a short time. You can still play offline.'},until:0}))}catch(e){}pid=null;setTimeout(()=>{try{ws.close()}catch(e){}},200);return}
+     if(mt&&mt.blockOnline){try{ws.send(JSON.stringify({t:'maint',msg:mt.msg,until:mt.until||0}))}catch(e){}pid=null;setTimeout(()=>{try{ws.close()}catch(e){}},200);return}}let c=clients.get(pid);
    if(c){if(c.ws&&c.ws!==ws)try{c.ws.close()}catch(e){};c.ws=ws}else{c={ws,room:null};clients.set(pid,c)}
    c.name=String(m.name||'Player').slice(0,16);c.avatar=(a=>/^av:[a-z0-9_]{1,24}$/i.test(a)?a:a.slice(0,4))(String(m.avatar||'🦁'));
    c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started){if(r.mg){mg.onJoinStarted(r,c);mg.schedule(r)}else{send(ws,stateMsg(r));schedule(r);resendOver(r,ws)}}}return}
@@ -142,7 +146,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
      c.diamonds=sp.bal;r.rerolls[pi]=sp.n;clearTimeout(r.timer);doRoll(r,{reroll:true,cost:sp.cost,bal:sp.bal,n:sp.n});break}
    case 'gems':c.diamonds=Math.max(0,Math.min(100000,m.diamonds|0));break;
    case 'move':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}if(r&&r.started&&seatOf(r,pid)===r.g.turn)doMove(r,{ti:m.ti,di:m.di,pj:m.pj});break;
-   case 'chat':if(r){const i=seatOf(r,pid);if(i>=0)bc(r,{t:'chat',pi:i,fid:c.fid,text:social.matchChat(c,m.text)})}break;
+   case 'chat':if(r){if(LO.muted(pid)){send(ws,{t:'toast',msg:'You are muted for now.'});break}const i=seatOf(r,pid);if(i>=0)bc(r,{t:'chat',pi:i,fid:c.fid,text:LO.filterText(social.matchChat(c,m.text))})}break;
    case 'gift':if(r&&r.started){const i=seatOf(r,pid);const to=m.to|0;if(i>=0&&to>=0&&to<r.seats.length&&to!==i)bc(r,{t:'gift',from:i,to,item:String(m.item||'').slice(0,8)})}break;
    case 'away':{c.away=!!m.on;if(r&&r.started){const i=seatOf(r,pid);if(i>=0){bc(r,{t:'away',pi:i,on:!!m.on});schedule(r)}}break}
    case 'sync':if(r){sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else{send(ws,stateMsg(r));resendOver(r,ws)}}}break;

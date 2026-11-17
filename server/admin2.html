@@ -1,0 +1,422 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex">
+<title>Ludo Sultan LiveOps</title>
+<style>
+:root{--bg:#120822;--panel:#1d1036;--panel2:#251544;--line:#3a2766;--txt:#efe9ff;--mut:#a698c9;--gold:#f5c451;--gold2:#e0a52b;--grn:#3ed598;--red:#ff6b81;--blu:#62a8ff;--pur:#9b6bff}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%}
+body{font-family:"Inter","Segoe UI",Roboto,Arial,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,#2b1458 0,var(--bg) 60%) fixed;color:var(--txt);display:flex;font-size:13px;min-height:100vh}
+aside{width:232px;flex:none;background:rgba(13,6,26,.75);border-right:1px solid var(--line);padding:20px 14px;display:flex;flex-direction:column;gap:3px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding:0 6px}
+.logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--gold),#c9761c);display:grid;place-items:center;font-weight:900;color:#2a1300;font-size:17px;box-shadow:0 4px 14px rgba(245,196,81,.35)}
+.brand b{display:block;font-size:15px}.brand small{color:var(--mut);font-size:11px}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:var(--mut);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap}
+.nav:hover{background:rgba(255,255,255,.03);color:var(--txt)}
+.nav i{font-style:normal;width:20px;text-align:center}
+.nav em{margin-left:auto;font-style:normal;background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:99px;padding:1px 7px}
+.nav.on{background:linear-gradient(90deg,rgba(245,196,81,.18),rgba(245,196,81,.03));color:var(--gold);box-shadow:inset 3px 0 0 var(--gold)}
+.grp{font-size:10px;letter-spacing:.12em;color:#6f5f99;margin:12px 12px 4px;font-weight:700}
+.env{margin-top:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:11.5px;color:var(--mut);line-height:1.5}
+.env b{color:var(--txt)}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--grn);margin-right:6px;box-shadow:0 0 8px var(--grn)}
+main{flex:1;padding:22px 26px 60px;min-width:0}
+.top{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
+.top h1{font-size:22px;font-weight:800}.top p{color:var(--mut);margin-top:3px;max-width:640px}
+.acts{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{white-space:nowrap;padding:9px 14px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);font-weight:700;font-size:12.5px;cursor:pointer;font-family:inherit}
+.btn:hover{filter:brightness(1.15)}.btn:disabled{opacity:.5;cursor:default}
+.btn.g{background:linear-gradient(180deg,var(--gold),var(--gold2));color:#2a1300;border:0;box-shadow:0 4px 14px rgba(245,196,81,.3)}
+.btn.r{background:rgba(255,107,129,.12);color:var(--red);border-color:rgba(255,107,129,.35)}
+.btn.s{padding:6px 10px;font-size:11.5px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.kpi small{color:var(--mut);font-weight:600}.kpi b{display:block;font-size:22px;margin-top:6px}.kpi em{font-style:normal;font-size:11px;color:var(--grn)}
+.card{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;min-width:0}
+.card h3{font-size:14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3 span{font-size:11px;color:var(--mut);font-weight:600}
+.grid2{display:grid;grid-template-columns:1.55fr 1fr;gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.grid2e{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid2>*,.grid3>*,.grid2e>*{min-width:0}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:10.5px;letter-spacing:.08em;color:#7d6daa;font-weight:700;padding:8px;border-bottom:1px solid var(--line);text-transform:uppercase;white-space:nowrap}
+td{padding:9px 8px;border-bottom:1px solid rgba(58,39,102,.55);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tr.click{cursor:pointer}tr.click:hover td{background:rgba(255,255,255,.02)}
+.pill{display:inline-block;padding:3px 9px;border-radius:99px;font-size:10.5px;font-weight:800;white-space:nowrap}
+.live{background:rgba(62,213,152,.14);color:var(--grn)}.soon{background:rgba(98,168,255,.14);color:var(--blu)}.end{background:rgba(166,152,201,.14);color:var(--mut)}.draft{background:rgba(245,196,81,.14);color:var(--gold)}.warn{background:rgba(255,107,129,.14);color:var(--red)}
+.ev{display:flex;align-items:center;gap:10px}.ev .ic{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:17px;background:#2f1c57;flex:none}
+.ev b{display:block}.ev small{color:var(--mut)}
+.bar{height:6px;background:#2f1c57;border-radius:99px;overflow:hidden;margin-top:5px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--pur),var(--gold))}
+label{display:block;color:var(--mut);font-size:11px;font-weight:700;margin:10px 0 5px}
+.in{background:#140a28;border:1px solid var(--line);border-radius:9px;padding:9px 11px;color:var(--txt);width:100%;font:inherit}
+.in:focus{outline:none;border-color:var(--gold)}
+textarea.in{min-height:64px;resize:vertical}
+.row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+.seg{display:flex;background:#140a28;border:1px solid var(--line);border-radius:10px;padding:3px}.seg span{flex:1;text-align:center;padding:7px;border-radius:8px;color:var(--mut);font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}.seg .on{background:var(--panel2);color:var(--gold)}
+.tog{width:38px;height:22px;border-radius:99px;background:#3a2766;position:relative;flex:none!important;cursor:pointer;border:0}.tog:after{content:"";position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#bfb3e3;transition:left .15s}
+.tog.on{background:var(--grn)}.tog.on:after{left:19px;background:#fff}
+.flag{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid rgba(58,39,102,.55)}.flag:last-child{border-bottom:0}
+.flag b{display:block}.flag small{color:var(--mut)}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;color:#cdbfff}
+.av{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--pur),var(--blu));display:grid;place-items:center;font-weight:800;font-size:12px;flex:none}
+.coin{color:var(--gold);font-weight:800}.gem{color:#7fd3ff;font-weight:800}.neg{color:var(--red);font-weight:800}.mut{color:var(--mut)}
+.note{background:rgba(98,168,255,.08);border:1px solid rgba(98,168,255,.25);color:#bcd7ff;border-radius:10px;padding:10px 12px;font-size:12px;margin-top:12px;line-height:1.45}
+.steps{display:flex;gap:8px;margin:0 0 14px;flex-wrap:wrap}.steps div{flex:1;min-width:150px;background:#140a28;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11.5px;color:var(--mut)}.steps div b{display:block;color:var(--txt);font-size:12.5px;margin-bottom:2px}.steps .ok{border-color:rgba(62,213,152,.5)}.steps .ok b:before{content:"✓ ";color:var(--grn)}
+.ring{width:130px;height:130px;border-radius:50%;display:grid;place-items:center;margin:4px auto 10px;background:#2f1c57}.ring>div{width:100px;height:100px;border-radius:50%;background:var(--panel);display:grid;place-items:center;text-align:center}.ring b{font-size:22px;display:block}.ring small{color:var(--mut)}
+.sec{display:none}.sec.on{display:block}
+.chart{display:flex;align-items:flex-end;gap:6px;height:120px;padding-top:16px}.chart div{flex:1;background:linear-gradient(180deg,var(--gold),#9b6bff);border-radius:6px 6px 2px 2px;min-height:3px;position:relative}.chart div span{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font-size:9.5px;color:var(--mut)}.chart div b{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:9.5px;color:var(--txt)}
+.lst>div{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid rgba(58,39,102,.5)}.lst>div:last-child{border:0}
+.mini{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}.mini div{background:#140a28;border:1px solid var(--line);border-radius:10px;padding:10px 12px}.mini small{color:var(--mut);font-size:11px}.mini b{display:block;font-size:19px;margin-top:4px}
+#toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(30px);background:#2b1a52;border:1px solid var(--gold);color:var(--txt);padding:11px 18px;border-radius:12px;font-weight:700;opacity:0;transition:.2s;z-index:99;pointer-events:none;max-width:90vw}
+#toast.on{opacity:1;transform:translateX(-50%)}#toast.err{border-color:var(--red)}
+.modal{position:fixed;inset:0;background:rgba(5,2,12,.7);display:none;align-items:flex-start;justify-content:center;z-index:50;padding:30px 12px;overflow:auto}.modal.on{display:flex}
+.modal .card{width:760px;max-width:100%;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.login{margin:auto;width:360px;max-width:92vw}
+.login .logo{width:56px;height:56px;font-size:24px;margin:0 auto 12px}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}.tabs span{padding:5px 10px;border-radius:8px;background:#140a28;border:1px solid var(--line);font-size:11px;font-weight:700;cursor:pointer;color:var(--mut)}.tabs span.on{color:var(--gold);border-color:var(--gold)}.tabs span.has{color:var(--txt)}
+.empty{color:var(--mut);text-align:center;padding:22px}
+.chip{display:inline-block;background:#2f1c57;border-radius:6px;padding:2px 7px;font-size:11px;margin:1px}
+.hide{display:none!important}
+@media(max-width:1100px){.grid2,.grid3,.grid2e{grid-template-columns:1fr}.mini{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){body{flex-direction:column}aside{width:auto;height:auto;position:sticky;top:0;z-index:20;flex-direction:row;overflow-x:auto;padding:8px;gap:4px;border-right:0;border-bottom:1px solid var(--line)}
+ .brand,.grp,.env{display:none}.nav{padding:8px 10px}main{padding:16px 12px 60px}.row{flex-wrap:wrap}.row>*{flex:1 1 140px}}
+</style></head><body>
+<div id="loginV" class="login hide"><div class="card" style="padding:26px">
+ <div class="logo">LS</div><h2 style="text-align:center;font-size:18px">Ludo Sultan LiveOps</h2><p class="mut" style="text-align:center;margin:4px 0 10px">Sign in to manage the live game</p>
+ <label>Username</label><input class="in" id="lu" autocomplete="username">
+ <label>Password</label><input class="in" id="lp" type="password" autocomplete="current-password">
+ <div id="l2" class="hide"><label>2FA code (authenticator app)</label><input class="in" id="lc" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+ <button class="btn g" style="width:100%;margin-top:16px" onclick="doLogin()">Sign in</button><p id="lerr" style="color:var(--red);margin-top:10px;text-align:center"></p>
+</div></div>
+<aside id="side" class="hide">
+ <div class="brand"><div class="logo">LS</div><div><b>Ludo Sultan</b><small>LiveOps Console</small></div></div>
+ <div class="grp">LIVE GAME</div>
+ <div class="nav" data-s="dash"><i>📊</i>Dashboard</div>
+ <div class="nav" data-s="events"><i>🏆</i>Events</div>
+ <div class="nav" data-s="players"><i>👥</i>Players &amp; Giveaways</div>
+ <div class="nav" data-s="announce"><i>📣</i>Announcements &amp; Mail</div>
+ <div class="nav" data-s="store"><i>🛍️</i>Store &amp; Offers</div>
+ <div class="nav" data-s="rewards"><i>🎁</i>Rewards &amp; Spin</div>
+ <div class="nav" data-s="codes"><i>🎟️</i>Gift Codes</div>
+ <div class="nav" data-s="themes"><i>🎨</i>Themes</div>
+ <div class="grp">CONTROL</div>
+ <div class="nav" data-s="config"><i>🎛️</i>Config &amp; Flags</div>
+ <div class="nav" data-s="mod"><i>🛡️</i>Moderation<em id="repN" class="hide"></em></div>
+ <div class="nav" data-s="ota"><i>🚀</i>Live Update (OTA)</div>
+ <div class="nav" data-s="audit"><i>🧾</i>Audit Log</div>
+ <div class="nav" data-s="admins"><i>🔐</i>Admins &amp; 2FA</div>
+ <div class="env" id="envBox"><span class="dot"></span><b>Production</b></div>
+</aside>
+<main id="main" class="hide">
+<section class="sec" id="s-dash"><div class="top"><div><h1>Dashboard</h1><p>Live numbers from the game server. Refreshes every 20 seconds.</p></div><div class="acts"><button class="btn" onclick="load('dash')">↻ Refresh</button></div></div>
+ <div class="kpis" id="dKpi"></div>
+ <div class="grid2"><div class="card"><h3>Last 14 days <span>active players per day (UTC)</span></h3><div class="chart" id="dChart"></div><div style="height:22px"></div>
+   <div class="tw"><table><thead><tr><th>Day</th><th>Active</th><th>New</th><th>Matches</th><th>Peak online</th><th>Gifts claimed</th><th>Codes</th></tr></thead><tbody id="dDays"></tbody></table></div></div>
+  <div><div class="card"><h3>Countries <span>last 7 days</span></h3><div class="lst" id="dCountries"></div></div>
+   <div class="card"><h3>App versions <span>last 7 days</span></h3><div class="lst" id="dVers"></div></div>
+   <div class="card"><h3>Web bundles <span>OTA</span></h3><div class="lst" id="dBundles"></div></div></div></div>
+</section>
+<section class="sec" id="s-events"><div class="top"><div><h1>Events</h1><p>Add, end, extend or remove events. Phones pick up changes within a minute. Text is auto translated into 12 languages.</p></div><div class="acts"><button class="btn" onclick="openRewards()">Welcome &amp; event rewards</button><button class="btn g" onclick="editEvent()">＋ New event</button></div></div>
+ <div class="kpis" id="eKpi"></div>
+ <div class="card"><h3>All events <span id="eCount"></span></h3><div class="tw"><table><thead><tr><th>Event</th><th>Status</th><th>Dates (Madrid)</th><th>Entry</th><th>Players</th><th>Prize pool</th><th></th></tr></thead><tbody id="eRows"></tbody></table></div></div>
+</section>
+<section class="sec" id="s-players"><div class="top"><div><h1>Players &amp; Giveaways</h1><p>Give or remove virtual coins and diamonds, or run a giveaway. Every change is delivered as in-game mail, logged, and can be reversed.</p></div>
+ <div class="acts"><input class="in" id="pq" placeholder="🔎 Player ID, friend code or name" style="width:250px" onkeydown="if(event.key==='Enter')searchP()"><button class="btn" onclick="searchP()">Search</button></div></div>
+ <div class="grid2"><div>
+  <div class="card" id="pCard"><div class="empty">Search a player by name, 6-letter friend code or player ID.</div></div>
+  <div class="card"><h3>Recent player changes <span>Audit log · undo</span></h3><div class="tw"><table><thead><tr><th>Time</th><th>Player</th><th>Change</th><th>By</th><th></th></tr></thead><tbody id="pRecent"></tbody></table></div></div>
+ </div>
+ <div class="card"><h3>Giveaway <span class="pill draft">DRAFT</span></h3>
+  <label>Send to</label><div class="seg" id="gAud"><span data-v="all" class="on">All players</span><span data-v="country">Country</span><span data-v="list">Selected IDs</span></div>
+  <div id="gToW" class="hide"><label id="gToL">Country codes</label><input class="in" id="gTo" placeholder="PK, IN, SA"></div>
+  <div class="row"><div><label>Coins</label><input class="in" id="gCoins" type="number" value="5000"></div><div><label>Diamonds</label><input class="in" id="gGems" type="number" value="20"></div></div>
+  <div class="row"><div><label>Bonus item (optional)</label><select class="in" id="gItemT"><option value="">None</option><option value="dice">Dice skin</option><option value="token">Pawn skin</option><option value="board">Board</option><option value="frame">Frame</option></select></div><div><label>Item id</label><input class="in" id="gItemI" placeholder="e.g. gold"></div></div>
+  <label>Title</label><input class="in" id="gTitle" value="A gift from Ludo Sultan">
+  <label>Message to players</label><textarea class="in" id="gMsg">Jumu'ah Mubarak! A small gift from the Ludo Sultan team. 🌙</textarea>
+  <div class="row"><div><label>Send at</label><input class="in" id="gStart" type="datetime-local"></div><div><label>Claim before</label><input class="in" id="gEnd" type="datetime-local"></div></div>
+  <div class="row"><div><label>Max claims (0 = no limit)</label><input class="in" id="gCap" type="number" value="0"></div><div><label>Who</label><select class="in" id="gExist"><option value="0">Everyone, also new players</option><option value="1">Only players who exist now</option></select></div></div>
+  <div class="note" id="gReach">Max per giveaway: 100,000 coins / 1,000 diamonds (safety limit).</div>
+  <div class="row" style="margin-top:12px"><button class="btn" onclick="giveaway(true)">Check reach</button><button class="btn g" onclick="giveaway(false)">Schedule giveaway</button></div>
+ </div></div>
+</section>
+<section class="sec" id="s-announce"><div class="top"><div><h1>Announcements &amp; Mail</h1><p>Popups, news ticker and banners in the game, plus every gift mail sent. Popups can target countries, languages and app versions.</p></div><div class="acts"><button class="btn" onclick="addPopup('ticker')">＋ Ticker</button><button class="btn g" onclick="addPopup('popup')">＋ New popup</button></div></div>
+ <div class="card"><h3>Popups, banners &amp; ticker <span>saved = live in about 1 minute</span></h3><div class="tw"><table><thead><tr><th>Type</th><th>Title</th><th>Shows</th><th>Dates</th><th>Target</th><th>State</th><th></th></tr></thead><tbody id="aRows"></tbody></table></div></div>
+ <div class="card"><h3>Sent mail &amp; giveaways <span>last 200</span></h3><div class="tw"><table><thead><tr><th>Sent</th><th>To</th><th>Reward</th><th>Title</th><th>Claimed</th><th>Expires</th><th></th></tr></thead><tbody id="mRows"></tbody></table></div></div>
+</section>
+<section class="sec" id="s-store"><div class="top"><div><h1>Store &amp; Offers</h1><p>Show or hide packs, change tags and bonus, and run a special offer popup. Real prices stay in Play Console (Google sets them per country).</p></div><div class="acts"><button class="btn g" onclick="saveStore()">Publish store</button></div></div>
+ <div class="grid2"><div class="card"><h3>Packs <span>Play Billing SKUs</span></h3><div class="tw"><table><thead><tr><th>Pack</th><th>Tag</th><th>Bonus %</th><th>Shows</th></tr></thead><tbody id="stRows"></tbody></table></div><div class="note">Bonus % adds extra coins or diamonds on top of the pack after a successful purchase, for example a weekend "+20%" deal.</div></div>
+  <div class="card"><h3>Special offer popup <span id="ofState"></span></h3>
+   <div class="flag"><div><b>Offer on</b><small>Shows in the lobby while the dates are active</small></div><button class="tog" id="ofOn" onclick="this.classList.toggle('on')"></button></div>
+   <label>Pack</label><select class="in" id="ofSku"></select>
+   <label>Title</label><input class="in" id="ofTitle" placeholder="Jumu'ah bundle">
+   <label>Text</label><textarea class="in" id="ofText" placeholder="Extra diamonds this weekend only"></textarea>
+   <div class="row"><div><label>Badge</label><input class="in" id="ofBadge" placeholder="NEW"></div><div><label>Show</label><select class="in" id="ofFreq"><option value="once">Once</option><option value="daily">Once per day</option><option value="always">Every app open</option></select></div></div>
+   <div class="row"><div><label>Start</label><input class="in" id="ofStart" type="datetime-local"></div><div><label>End</label><input class="in" id="ofEnd" type="datetime-local"></div></div></div></div>
+</section>
+<section class="sec" id="s-rewards"><div class="top"><div><h1>Rewards &amp; Spin</h1><p>Daily login calendar and Lucky Spin prizes. The game uses these numbers from the next app open.</p></div><div class="acts"><button class="btn" onclick="openRewards()">Welcome gift</button></div></div>
+ <div class="grid2e"><div class="card"><h3>Daily rewards <span>7-day streak</span></h3><div class="tw"><table><thead><tr><th>Day</th><th>Coins</th><th>Diamonds</th></tr></thead><tbody id="drRows"></tbody></table></div><button class="btn g" style="margin-top:12px" onclick="saveDaily()">Publish daily rewards</button></div>
+  <div class="card"><h3>Lucky Spin <span>8 slices · chance is relative weight</span></h3><div class="tw"><table><thead><tr><th>Slice</th><th>Prize</th><th>Amount</th><th>Chance</th></tr></thead><tbody id="spRows"></tbody></table></div><div class="note" id="spEv"></div><button class="btn g" style="margin-top:12px" onclick="saveSpin()">Publish spin wheel</button></div></div>
+</section>
+<section class="sec" id="s-codes"><div class="top"><div><h1>Gift Codes</h1><p>Create codes for X, Discord or YouTube. Players type them in Settings, Gift code. One use per player.</p></div><div class="acts"><button class="btn g" onclick="editCode()">＋ New code</button></div></div>
+ <div class="card"><div class="tw"><table><thead><tr><th>Code</th><th>Reward</th><th>Used</th><th>Dates</th><th>Country</th><th>Note</th><th>State</th><th></th></tr></thead><tbody id="cRows"></tbody></table></div></div>
+</section>
+<section class="sec" id="s-themes"><div class="top"><div><h1>Themes</h1><p>Schedule a seasonal look (lobby background, board frame, particles like snow, accent colors, music, banner). The game switches by itself at the start date and back after the end date.</p></div><div class="acts"><button class="btn" onclick="addSched()">＋ Schedule theme</button><button class="btn g" onclick="saveThemes()">Publish themes</button></div></div>
+ <div class="grid2"><div><div class="card"><h3>Now showing <span id="thNow"></span></h3><div id="thNowB"></div></div>
+  <div class="card"><h3>Schedule <span>Madrid time</span></h3><div class="tw"><table><thead><tr><th>Theme</th><th>Name</th><th>Start</th><th>End</th><th>Teaser days</th><th>On</th><th></th></tr></thead><tbody id="thRows"></tbody></table></div></div></div>
+  <div class="card"><h3>Theme packs <span>art ships in the web bundle</span></h3><div class="lst" id="thPacks"></div>
+   <div class="note">New theme art (backgrounds, frames, music) is delivered with a Live Update bundle, so no Play update is needed. A pack has to be approved and shipped in a bundle before it can be scheduled. Only <b>default</b> is available right now.</div></div></div>
+</section>
+<section class="sec" id="s-config"><div class="top"><div><h1>Config &amp; Flags</h1><p>Turn features on or off and change game values live. Phones pick up config <b id="cfgV"></b> within a minute.</p></div><div class="acts"><button class="btn" onclick="showHist()">View history</button><button class="btn g" onclick="saveFlags()">Publish flags</button></div></div>
+ <div class="grid3"><div class="card"><h3>Feature flags <span id="flN"></span></h3><div id="flRows"></div></div>
+  <div><div class="card"><h3>Maintenance mode <span id="mtState"></span></h3>
+    <div class="flag"><div><b>Maintenance on</b><small>Shows a message and pauses online play</small></div><button class="tog" id="mtOn" onclick="this.classList.toggle('on')"></button></div>
+    <label>Message (English, auto translated)</label><textarea class="in" id="mtMsg"></textarea>
+    <div class="row"><div><label>Ends automatically</label><input class="in" id="mtUntil" type="datetime-local"></div><div><label>Online play</label><select class="in" id="mtBlock"><option value="1">Paused</option><option value="0">Still on</option></select></div></div>
+    <button class="btn g" style="margin-top:12px" onclick="saveMaint()">Publish maintenance</button></div>
+   <div class="card"><h3>App update popup <span>Play version codes</span></h3>
+    <div class="row"><div><label>Force update below vc</label><input class="in" id="upMin" type="number"></div><div><label>Suggest update below vc</label><input class="in" id="upLatest" type="number"></div></div>
+    <label>Message</label><textarea class="in" id="upMsg"></textarea>
+    <button class="btn g" style="margin-top:12px" onclick="saveUpdate()">Publish update rule</button></div></div>
+  <div><div class="card"><h3>Remote values <span>JSON, read by the game</span></h3><textarea class="in mono" id="varsTa" style="min-height:180px"></textarea><div class="note">Example: <span class="mono">{"inviteBonus":500}</span>. Unknown keys are ignored by older versions.</div><button class="btn g" style="margin-top:12px" onclick="saveVars()">Publish values</button></div>
+   <div class="card"><h3>Chat filter <span>one word per line</span></h3><textarea class="in" id="chatTa" style="min-height:100px"></textarea><button class="btn g" style="margin-top:12px" onclick="saveChat()">Publish filter</button></div></div></div>
+</section>
+<section class="sec" id="s-mod"><div class="top"><div><h1>Moderation</h1><p>Review reports, ban or mute players. Bans stop online play right away; mutes block match chat, DMs and club chat.</p></div></div>
+ <div class="grid2"><div class="card"><h3>Reports <span id="rpN"></span></h3><div class="tw"><table><thead><tr><th>Time</th><th>Reported</th><th>Reason</th><th>By</th><th>Total</th><th></th></tr></thead><tbody id="rpRows"></tbody></table></div></div>
+  <div><div class="card"><h3>Ban or mute</h3><label>Player ID or friend code</label><input class="in" id="mdId"><div class="row"><div><label>Action</label><select class="in" id="mdKind"><option value="ban">Ban</option><option value="mute">Mute</option></select></div><div><label>Duration</label><select class="in" id="mdH"><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720">30 days</option><option value="0">Permanent</option></select></div></div>
+    <label>Reason</label><input class="in" id="mdR" placeholder="Abusive chat"><button class="btn r" style="margin-top:12px;width:100%" onclick="modSet()">Apply</button></div>
+   <div class="card"><h3>Active bans &amp; mutes</h3><div class="tw"><table><tbody id="mdRows"></tbody></table></div></div></div></div>
+</section>
+<section class="sec" id="s-ota"><div class="top"><div><h1>Live Update (OTA)</h1><p>Ship small fixes to the game's web code (HTML/JS/CSS) with no Play upload. Native code never changes.</p></div><div class="acts"><button class="btn" onclick="otaPause()" id="otaPauseB">Pause</button></div></div>
+ <div class="steps" id="otaSteps"></div>
+ <div class="grid2"><div class="card"><h3>Bundles <span id="otaMin"></span></h3><div class="tw"><table><thead><tr><th>Bundle</th><th>Change</th><th>Rollout</th><th>Status</th><th></th></tr></thead><tbody id="otaRows"></tbody></table></div>
+   <div class="note">Safety: the phone checks the SHA-256 and the signature before using a bundle. If the download fails, the game does not start within 25 seconds, or the signature is wrong, it goes back to the last good bundle or the built-in copy. Upload bundles with <span class="mono">tools/ota-publish.js</span> on the build box (it signs with the offline key).</div></div>
+  <div class="card"><h3>Health <span id="otaHT"></span></h3><div class="ring" id="otaRing"><div><div><b id="otaPct">0%</b><small>updated</small></div></div></div><div class="lst" id="otaHealth"></div>
+   <div class="row" style="margin-top:12px"><button class="btn r" onclick="otaRollback('builtin')">⟲ Roll back all</button></div>
+   <h3 style="margin-top:14px">Recent JS errors</h3><div class="lst mono" id="otaErrs" style="max-height:200px;overflow:auto"></div></div></div>
+</section>
+<section class="sec" id="s-audit"><div class="top"><div><h1>Audit Log</h1><p>Every admin change, newest first. Undo puts the old value back (claimed gifts are reversed with a correction mail).</p></div><div class="acts"><input class="in" id="auQ" placeholder="Filter" style="width:200px" oninput="renderAudit()"></div></div>
+ <div class="card"><div class="tw"><table><thead><tr><th>Time (Madrid)</th><th>By</th><th>Action</th><th>Target</th><th>Change</th><th></th></tr></thead><tbody id="auRows"></tbody></table></div></div>
+</section>
+<section class="sec" id="s-admins"><div class="top"><div><h1>Admins &amp; 2FA</h1><p>Who can sign in, and how the panel is protected.</p></div><div class="acts"><button class="btn r" onclick="logout()">Sign out</button></div></div>
+ <div class="grid2e"><div class="card"><h3>This session</h3><div class="lst" id="adSess"></div></div>
+  <div class="card"><h3>Security</h3><div class="lst">
+   <div><span>Password</span><b>scrypt hash in Render env</b></div><div><span>2FA</span><b>Set ADMIN_TOTP_SECRET to require a code</b></div>
+   <div><span>Session</span><b>HttpOnly SameSite cookie, 8 hours</b></div><div><span>Lockout</span><b>6 wrong tries = 15 min</b></div><div><span>Roles</span><b>owner (all) · support (players, mail, moderation)</b></div>
+   <div><span>OTA bundles</span><b>ECDSA P-256 signed offline</b></div></div>
+   <div class="note">Second admin: set ADMIN2_USER and ADMIN2_PASS_HASH in Render for a support login. It can give single-player gifts, mute and ban, but cannot change config, store, OTA or themes.</div></div></div>
+</section>
+</main>
+<div class="modal" id="modal" onclick="if(event.target===this)closeM()"><div class="card" id="mBody"></div></div>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const E=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const N=n=>(+n||0).toLocaleString('en-US');
+const TZ='Europe/Madrid';
+const dt=t=>t?new Date(t).toLocaleString('en-GB',{timeZone:TZ,day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'-';
+const dd=t=>t?new Date(t).toLocaleDateString('en-GB',{timeZone:TZ,day:'2-digit',month:'short'}):'-';
+const ago=t=>{if(!t)return '-';const s=(Date.now()-t)/1e3;return s<90?'now':s<3600?Math.round(s/60)+' min ago':s<86400?Math.round(s/3600)+' h ago':Math.round(s/86400)+' d ago'};
+const toLocalIn=t=>{if(!t)return '';const d=new Date(t);return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,16)};
+const fromIn=v=>v?new Date(v).getTime():0;
+const nodash=s=>String(s||'').replace(/[\u2013\u2014]/g,'-');
+let ST={me:null,cfg:null,ov:null,events:null,sec:'dash',audit:[],mod:null,themes:null,ota:null};
+function toast(m,err){const t=$('#toast');t.textContent=m;t.className=err?'on err':'on';clearTimeout(t._t);t._t=setTimeout(()=>t.className='',2600)}
+async function api(u,body){const o={method:body?'POST':'GET',headers:{'X-LS-Admin':'1'},credentials:'same-origin'};if(body){o.headers['Content-Type']='application/json';o.body=JSON.stringify(body)}
+ const r=await fetch(u,o);let j={};try{j=await r.json()}catch(e){}if(r.status===401&&!u.endsWith('/login')){showLogin();throw new Error('Please sign in')}if(!r.ok||j.error)throw new Error(j.error||('HTTP '+r.status));return j}
+const lo=(p,b)=>api('/admin/api/lo/'+p,b);
+async function tr(text){if(!text)return {};try{const j=await api('/admin/api/translate',{text:nodash(text)});return j.out||{en:text}}catch(e){return {en:text}}}
+function showLogin(){$('#loginV').classList.remove('hide');$('#side').classList.add('hide');$('#main').classList.add('hide')}
+async function doLogin(){$('#lerr').textContent='';try{const j=await api('/admin/api/login',{user:$('#lu').value,pass:$('#lp').value,code:$('#lc').value});if(j.need2fa){$('#l2').classList.remove('hide');$('#lc').focus();return}boot()}catch(e){$('#lerr').textContent=e.message}}
+$('#lp').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});$('#lc').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+async function logout(){await api('/admin/api/logout',{});location.reload()}
+let booted=false;
+async function boot(){try{ST.ov=await lo('overview')}catch(e){return showLogin()}
+ $('#loginV').classList.add('hide');$('#side').classList.remove('hide');$('#main').classList.remove('hide');ST.me={user:ST.ov.user,role:ST.ov.role};
+ $$('.nav').forEach(n=>n.onclick=()=>go(n.dataset.s));go((location.hash||'#dash').slice(1));if(!booted){booted=true;setInterval(()=>{if(ST.sec==='dash')load('dash')},20000)}}
+function go(s){if(!$('#s-'+s))s='dash';ST.sec=s;history.replaceState(null,'','#'+s);$$('.nav').forEach(n=>n.classList.toggle('on',n.dataset.s===s));$$('.sec').forEach(x=>x.classList.toggle('on',x.id==='s-'+s));load(s);window.scrollTo(0,0)}
+async function load(s){try{if(s==='dash'){ST.ov=await lo('overview');renderDash()}
+ else if(s==='events'){ST.events=await api('/admin/api/state');renderEvents()}
+ else if(s==='players'){await loadAudit();renderRecent()}
+ else if(s==='announce'){await loadCfg();renderPopups();const m=await lo('mail');renderMail(m.mail)}
+ else if(s==='store'){await loadCfg();renderStore()}
+ else if(s==='rewards'){await loadCfg();renderRewards()}
+ else if(s==='codes'){const c=await lo('codes');renderCodes(c.codes)}
+ else if(s==='themes'){ST.themes=await lo('themes');renderThemes()}
+ else if(s==='config'){await loadCfg();renderConfig()}
+ else if(s==='mod'){ST.mod=await lo('mod');renderMod()}
+ else if(s==='ota'){ST.ota=await lo('ota');renderOta()}
+ else if(s==='audit'){await loadAudit();renderAudit()}
+ else if(s==='admins'){renderAdmins()}
+ renderEnv()}catch(e){toast(e.message,1)}}
+async function loadCfg(){ST.cfg=await lo('config')}
+async function loadAudit(){ST.audit=(await lo('audit')).audit}
+function renderEnv(){const o=ST.ov||{};$('#envBox').innerHTML=`<span class="dot" style="${o.maintenance?'background:var(--red);box-shadow:0 0 8px var(--red)':''}"></span><b>${o.maintenance?'Maintenance':'Production'}</b><br>ludo-sultan-server · ${E(o.store||'')}<br>Config v${o.cfgV||'-'} · Bundle ${E(o.bundle||'built-in')}<br>${E(o.user||'')} (${E(o.role||'')})`;
+ const r=$('#repN');if(o.reports){r.textContent=o.reports;r.classList.remove('hide')}else r.classList.add('hide')}
+function renderDash(){const o=ST.ov,t=o.today||{};
+ $('#dKpi').innerHTML=[['🟢 Online now',N(o.online),o.inMatch+' in matches'],['🎲 Live matches',N(o.rooms),N(t.matches||0)+' today'],['👤 Active today',N(t.active||0),N(o.active7)+' this week'],['✨ New players today',N(t.newPlayers||0),N(o.players)+' total'],
+  ['🔐 Accounts',N(o.accounts),'Google / email'],['🎁 Gifts claimed today',N(t.claims||0),N(t.coins||0)+' coins'],['🚩 Open reports',N(o.reports),'Moderation'],['⚙️ Config','v'+o.cfgV,o.flagsOn+' of '+o.flagsAll+' flags on']]
+  .map(k=>`<div class="kpi"><small>${k[0]}</small><b>${k[1]}</b><em>${E(k[2])}</em></div>`).join('');
+ const days=o.days||[];const mx=Math.max(1,...days.map(d=>d.active||0));
+ $('#dChart').innerHTML=days.length?days.map(d=>`<div style="height:${Math.max(3,(d.active||0)/mx*100)}%"><b>${d.active||0}</b><span>${d.day.slice(8)}</span></div>`).join(''):'<p class="mut">No data yet. Numbers start when 3.14.0 phones open the app.</p>';
+ $('#dDays').innerHTML=days.slice().reverse().map(d=>`<tr><td>${d.day}</td><td>${N(d.active)}</td><td>${N(d.newPlayers)}</td><td>${N(d.matches)}</td><td>${N(d.peak)}</td><td>${N(d.claims)}</td><td>${N(d.redeems)}</td></tr>`).join('')||'<tr><td colspan=7 class="empty">No days yet</td></tr>';
+ const lst=(o2,id)=>{const e=Object.entries(o2||{}).sort((a,b)=>b[1]-a[1]).slice(0,8);$(id).innerHTML=e.map(([k,v])=>`<div><span>${E(k)}</span><b>${N(v)}</b></div>`).join('')||'<div class="mut">No data yet</div>'};
+ lst(o.countries,'#dCountries');lst(o.vers,'#dVers');lst(o.bundles,'#dBundles')}
+const ICONS={ramadan:'🌙',eid:'🕌',diwali:'🪔',holi:'🎨',vaisakhi:'🌾',easter:'🕊️',truck:'🚚',cricket:'🏏'};
+function evState(e){const t=Date.now();if(!e.active)return ['PAUSED','end'];if(t<e.start)return ['SOON','soon'];if(t>e.end)return ['ENDED','end'];return ['LIVE','live']}
+function renderEvents(){const ev=ST.events.events||[];
+ $('#eKpi').innerHTML=[['Live events',ev.filter(e=>evState(e)[0]==='LIVE').length],['Scheduled',ev.filter(e=>evState(e)[0]==='SOON').length],['Players joined',N(ev.reduce((a,e)=>a+(e.players||0),0))],['Prize pools',N(ev.reduce((a,e)=>a+(e.pool||0),0))+' 💎']].map(k=>`<div class="kpi"><small>${k[0]}</small><b>${k[1]}</b></div>`).join('');
+ $('#eCount').textContent=ev.length+' total';
+ $('#eRows').innerHTML=ev.slice().sort((a,b)=>b.start-a.start).map(e=>{const [s,c]=evState(e);const span=Math.max(1,e.end-e.start),done=Math.min(100,Math.max(0,(Date.now()-e.start)/span*100));
+  return `<tr><td><div class="ev"><div class="ic">${ICONS[e.icon]||'🏆'}</div><div><b>${E(e.name&&e.name.en)}</b><small>${E(e.community)} · ${E(e.mission&&e.mission.type)} ${e.mission&&e.mission.target||''}</small></div></div></td><td><span class="pill ${c}">${s}</span></td>
+  <td style="white-space:nowrap">${dt(e.start)} → ${dt(e.end)}<div class="bar"><i style="width:${done}%"></i></div></td><td>${e.fee?N(e.fee)+' 🪙':'Free'}</td><td>${N(e.players)}</td><td class="gem">${N(e.pool)} 💎</td>
+  <td style="white-space:nowrap"><button class="btn s" onclick="editEvent('${e.id}')">Edit</button> <button class="btn s" onclick="evAct('${e.id}','extend')">+ Days</button> ${s==='LIVE'?`<button class="btn s r" onclick="evAct('${e.id}','end')">End now</button>`:''} ${s==='PAUSED'?`<button class="btn s" onclick="evAct('${e.id}','resume')">Resume</button>`:`<button class="btn s" onclick="evAct('${e.id}','pause')">Hide</button>`} <button class="btn s r" onclick="delEvent('${e.id}')">Delete</button></td></tr>`}).join('')||'<tr><td colspan=7 class="empty">No events yet. Tap New event.</td></tr>'}
+async function evAct(id,action){let days=0;if(action==='extend'){days=prompt('Extend by how many days? (a minus number shortens it)','3');if(!days)return}
+ if(action==='end'&&!confirm('End this event now?'))return;
+ try{await lo('events/extend',{id,action,days:+days});toast('Saved');load('events')}catch(e){toast(e.message,1)}}
+async function delEvent(id){if(!confirm('Delete this event? You can undo it from the Audit Log.'))return;try{await api('/admin/api/event/delete',{id});toast('Deleted');load('events')}catch(e){toast(e.message,1)}}
+function editEvent(id){const e=(ST.events.events||[]).find(x=>x.id===id)||{name:{},desc:{},community:'all',icon:'ramadan',start:Date.now(),end:Date.now()+7*864e5,fee:0,seed:0,split:[35,20,12],mission:{type:'play',target:20,mode:'any'},rewards:[],active:true};
+ const langs=ST.events.langs||['en'];
+ openM(`<h3>${id?'Edit event':'New event'} <span>auto translated, you can edit each language</span></h3>
+ <label>Name (English)</label><input class="in" id="evN" value="${E(e.name.en||'')}" maxlength="80">
+ <label>Description (English)</label><textarea class="in" id="evD" maxlength="300">${E(e.desc.en||'')}</textarea>
+ <div class="row" style="margin-top:8px"><button class="btn s" style="flex:none" onclick="evTr()">🌐 Translate to all languages</button><span class="mut" id="evTrS" style="align-self:center"></span></div>
+ <div class="tabs" id="evTabs" style="margin-top:10px">${langs.map(l=>`<span data-l="${l}" class="${e.name[l]?'has':''}">${l.toUpperCase()}</span>`).join('')}</div><div id="evLang" class="hide"><label>Name</label><input class="in" id="evLN"><label>Description</label><textarea class="in" id="evLD"></textarea></div>
+ <div class="row"><div><label>Community</label><select class="in" id="evC">${['all','muslim','hindu','sikh','christian','general'].map(c=>`<option ${c===e.community?'selected':''}>${c}</option>`).join('')}</select></div><div><label>Icon</label><select class="in" id="evI">${Object.entries(ICONS).map(([k,v])=>`<option value="${k}" ${k===e.icon?'selected':''}>${v} ${k}</option>`).join('')}</select></div></div>
+ <div class="row"><div><label>Start</label><input class="in" type="datetime-local" id="evS" value="${toLocalIn(e.start)}"></div><div><label>End</label><input class="in" type="datetime-local" id="evE" value="${toLocalIn(e.end)}"></div></div>
+ <div class="row"><div><label>Entry fee (coins, 0 = free)</label><input class="in" type="number" id="evF" value="${e.fee}"></div><div><label>Seed prize (diamonds)</label><input class="in" type="number" id="evSd" value="${e.seed}"></div><div><label>Prize split %</label><input class="in" id="evSp" value="${(e.split||[]).join(', ')}"></div></div>
+ <div class="row"><div><label>Mission</label><select class="in" id="evMt"><option value="play" ${e.mission.type==='play'?'selected':''}>Play matches</option><option value="win" ${e.mission.type==='win'?'selected':''}>Win matches</option></select></div><div><label>Target</label><input class="in" type="number" id="evMn" value="${e.mission.target}"></div><div><label>Mode</label><input class="in" id="evMm" value="${E(e.mission.mode)}"></div></div>
+ <label>Level rewards (diamonds, comma separated)</label><input class="in" id="evRw" value="${(e.rewards||[]).filter(r=>r.type==='gems').map(r=>r.n).join(', ')}">
+ <div class="row" style="margin-top:16px"><button class="btn" onclick="closeM()">Cancel</button><button class="btn g" onclick="saveEvent('${id||''}')">Save event</button></div>`);
+ ST.evEdit={name:Object.assign({},e.name),desc:Object.assign({},e.desc),edited:e.edited||{},cur:null,old:e};
+ $$('#evTabs span').forEach(s=>s.onclick=()=>evTab(s.dataset.l))}
+function evTab(l){evStash();const x=ST.evEdit;x.cur=l;$$('#evTabs span').forEach(s=>s.classList.toggle('on',s.dataset.l===l));$('#evLang').classList.toggle('hide',l==='en');$('#evLN').value=x.name[l]||'';$('#evLD').value=x.desc[l]||''}
+function evStash(){const x=ST.evEdit;if(x&&x.cur&&x.cur!=='en'){const n=$('#evLN').value,d=$('#evLD').value;if(n!==(x.name[x.cur]||'')||d!==(x.desc[x.cur]||''))x.edited[x.cur]=1;x.name[x.cur]=n;x.desc[x.cur]=d}}
+async function evTr(){$('#evTrS').textContent='Translating…';const n=await tr($('#evN').value),d=await tr($('#evD').value);const x=ST.evEdit;for(const l in n)if(!x.edited[l]&&n[l])x.name[l]=n[l];for(const l in d)if(!x.edited[l]&&d[l])x.desc[l]=d[l];
+ $$('#evTabs span').forEach(s=>s.classList.toggle('has',!!x.name[s.dataset.l]));$('#evTrS').textContent='Done. Tap a language to check it.';if(x.cur)evTab(x.cur)}
+async function saveEvent(id){evStash();const x=ST.evEdit;x.name.en=nodash($('#evN').value);x.desc.en=nodash($('#evD').value);
+ if(!id&&!x.name.es){const n=await tr(x.name.en),d=await tr(x.desc.en);for(const l in n)if(!x.name[l]&&n[l])x.name[l]=n[l];for(const l in d)if(!x.desc[l]&&d[l])x.desc[l]=d[l]}
+ const m={id:id||undefined,name:x.name,desc:x.desc,edited:x.edited,community:$('#evC').value,icon:$('#evI').value,start:fromIn($('#evS').value),end:fromIn($('#evE').value),fee:+$('#evF').value,seed:+$('#evSd').value,
+  split:$('#evSp').value.split(/[ ,]+/).filter(Boolean).map(Number),mission:{type:$('#evMt').value,target:+$('#evMn').value,mode:$('#evMm').value},rewards:$('#evRw').value.split(/[ ,]+/).filter(Boolean).map(n=>({type:'gems',n:+n})),active:x.old.active!==false};
+ try{await api('/admin/api/event',m);closeM();toast('Event saved');load('events')}catch(e){toast(e.message,1)}}
+async function openRewards(){const s=await api('/admin/api/state');const r=s.rewards;openM(`<h3>Welcome &amp; event rewards</h3><div class="row"><div><label>Welcome coins (new players)</label><input class="in" id="rwC" type="number" value="${r.welcomeCoins}"></div><div><label>Welcome diamonds</label><input class="in" id="rwG" type="number" value="${r.welcomeGems}"></div></div>
+ <div class="row"><div><label>Diamonds per event level</label><input class="in" id="rwL" type="number" value="${r.eventLevelGems}"></div><div><label>Free event pool (diamonds)</label><input class="in" id="rwF" type="number" value="${r.freeEventGems}"></div></div>
+ <div class="row" style="margin-top:16px"><button class="btn" onclick="closeM()">Cancel</button><button class="btn g" onclick="saveRw()">Publish</button></div>`)}
+async function saveRw(){try{await api('/admin/api/rewards',{welcomeCoins:+$('#rwC').value,welcomeGems:+$('#rwG').value,eventLevelGems:+$('#rwL').value,freeEventGems:+$('#rwF').value});closeM();toast('Rewards published')}catch(e){toast(e.message,1)}}
+async function searchP(){const q=$('#pq').value.trim();try{const j=await lo('players?q='+encodeURIComponent(q));const L=j.players;
+ if(L.length===1)return openPlayer(L[0].pid);
+ $('#pCard').innerHTML=`<h3>Players <span>${L.length} found</span></h3><div class="tw"><table><thead><tr><th>Player</th><th>Country</th><th>Version</th><th>Coins</th><th>Last seen</th></tr></thead><tbody>${L.map(p=>`<tr class="click" onclick="openPlayer('${E(p.pid)}')"><td><div class="ev"><div class="av">${E((p.name||'P').slice(0,2).toUpperCase())}</div><div><b>${E(p.name)}</b><small class="mono">${E(p.fid)} · ${E(p.pid.slice(0,10))}…</small></div></div></td><td>${E(p.country)}</td><td>${E(p.ver)}</td><td class="coin">${N(p.coins)}</td><td>${ago(p.last)}</td></tr>`).join('')||'<tr><td colspan=5 class="empty">Nobody found</td></tr>'}</tbody></table></div>`}catch(e){toast(e.message,1)}}
+let PCUR=null;
+async function openPlayer(pid){try{const j=await lo('player?id='+encodeURIComponent(pid));const p=j.player;PCUR=p;
+ $('#pCard').innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div class="ev"><div class="av">${E((p.name||'P').slice(0,2).toUpperCase())}</div><div><b style="font-size:15px">${E(p.name)}</b><small>ID <span class="mono">${E(p.pid)}</span> · ${E(p.fid)} · ${E(p.country||'?')} · Level ${p.level} · v${E(p.ver||'?')}</small></div></div>
+  <div>${j.ban?'<span class="pill warn">BANNED</span> ':''}${j.mute?'<span class="pill draft">MUTED</span> ':''}<span class="pill ${j.online?'live':'end'}">${j.online?'ONLINE':'Seen '+ago(p.last)}</span></div></div>
+  <div class="mini"><div><small>Coins (phone)</small><b class="coin">${N(p.coins)}</b></div><div><small>Diamonds</small><b class="gem">${N(p.gems)}</b></div><div><small>Games</small><b>${N(p.games)}</b></div><div><small>Reports</small><b>${j.reports.length}</b></div></div>
+  <div class="row"><div><label>Action</label><div class="seg" id="paAct"><span data-v="1" class="on">＋ Give</span><span data-v="-1">－ Remove</span></div></div><div><label>Currency</label><div class="seg" id="paCur"><span data-v="coins" class="on">🪙 Coins</span><span data-v="gems">💎 Diamonds</span></div></div></div>
+  <div class="row"><div><label>Amount</label><input class="in" id="paAmt" type="number" value="50000"></div><div><label>Reason (required)</label><input class="in" id="paWhy" placeholder="Lost coins after disconnect, ticket #214"></div></div>
+  <label>Message to the player (optional)</label><input class="in" id="paMsg" placeholder="Sorry for the trouble, here are your coins back.">
+  <div class="row" style="margin-top:12px;align-items:stretch"><div class="note" style="margin:0">Delivered as an in-game mail. Arrives the next time the player opens the app. Removing never goes below 0.</div><button class="btn g" style="flex:none" onclick="sendPlayer()">Send to player</button></div>
+  <div class="row" style="margin-top:10px"><button class="btn s" onclick="quickMod('ban')">${j.ban?'Unban':'Ban'}</button><button class="btn s" onclick="quickMod('mute')">${j.mute?'Unmute':'Mute 24 h'}</button></div>
+  ${j.mail.length?`<h3 style="margin-top:14px">Mail for this player</h3><div class="tw"><table><tbody>${j.mail.map(m=>`<tr><td>${dt(m.t)}</td><td>${rew(m)}</td><td>${E(m.title&&m.title.en)}</td><td>${m.revoked?'<span class="pill end">STOPPED</span>':m.claimed?'<span class="pill live">CLAIMED</span>':'<span class="pill soon">WAITING</span>'}</td></tr>`).join('')}</tbody></table></div>`:''}
+  ${j.reports.length?`<h3 style="margin-top:14px">Reports</h3>${j.reports.map(r=>`<div class="mut" style="padding:4px 0">${dt(r.t)} · ${E(r.reason)} ${E(r.ctx||'')}</div>`).join('')}`:''}`;
+ segs('#paAct');segs('#paCur');ST.pMod={ban:!!j.ban,mute:!!j.mute}}catch(e){toast(e.message,1)}}
+function rew(m){return [m.coins?`<span class="${m.coins<0?'neg':'coin'}">${m.coins>0?'+':''}${N(m.coins)} coins</span>`:'',m.gems?`<span class="${m.gems<0?'neg':'gem'}">${m.gems>0?'+':''}${N(m.gems)} 💎</span>`:'',m.item?`<span class="chip">${E(m.item.type)}: ${E(m.item.id)}</span>`:''].filter(Boolean).join(' ')}
+function segs(sel,cb){$$(sel+' span').forEach(s=>s.onclick=()=>{$$(sel+' span').forEach(x=>x.classList.toggle('on',x===s));cb&&cb(s.dataset.v)})}
+const segv=sel=>{const s=$(sel+' span.on');return s&&s.dataset.v};
+async function sendPlayer(){const why=$('#paWhy').value.trim();if(!why)return toast('Add a reason',1);const sign=+segv('#paAct'),cur=segv('#paCur'),amt=Math.abs(+$('#paAmt').value||0)*sign;
+ if(!amt)return toast('Add an amount',1);if(!confirm(`${sign>0?'Give':'Remove'} ${N(Math.abs(amt))} ${cur==='coins'?'coins':'diamonds'} ${sign>0?'to':'from'} ${PCUR.name}?`))return;
+ try{const msg=$('#paMsg').value?await tr(nodash($('#paMsg').value)):{en:''};await lo('grant',{aud:'player',to:PCUR.pid,coins:cur==='coins'?amt:0,gems:cur==='gems'?amt:0,reason:why,title:sign>0?{en:'A gift for you'}:{en:'Balance correction'},msg});toast('Sent. The player gets it on next app open.');openPlayer(PCUR.pid);loadAudit().then(renderRecent)}catch(e){toast(e.message,1)}}
+async function quickMod(kind){const off=ST.pMod[kind];let reason='';if(!off){reason=prompt('Reason','Abusive chat');if(reason==null)return}try{await lo('mod/set',{kind,id:PCUR.pid,off,hours:kind==='mute'?24:0,reason});toast('Saved');openPlayer(PCUR.pid)}catch(e){toast(e.message,1)}}
+function renderRecent(){const L=ST.audit.filter(a=>a.action==='grant').slice(0,8);$('#pRecent').innerHTML=L.map(a=>`<tr><td style="white-space:nowrap">${dt(a.t)}</td><td>${E(a.target)}</td><td>${fmtChange(a.summary)}</td><td>${E(a.by)}</td><td>${a.canUndo?`<button class="btn s" onclick="undo('${a.id}')">Undo</button>`:a.undone?'<span class="mut">undone</span>':''}</td></tr>`).join('')||'<tr><td colspan=5 class="empty">No changes yet</td></tr>'}
+function fmtChange(s){return E(s).replace(/(\+[\d,]+ coins)/g,'<span class="coin">$1</span>').replace(/(-[\d,]+ coins)/g,'<span class="neg">$1</span>').replace(/([+-][\d,]+ diamonds)/g,'<span class="gem">$1</span>')}
+segs('#gAud',v=>{$('#gToW').classList.toggle('hide',v==='all');$('#gToL').textContent=v==='country'?'Country codes (PK, IN, SA, AE ...)':'Player IDs or friend codes (comma separated)'});
+async function giveaway(preview){const aud=segv('#gAud');const it=$('#gItemT').value;
+ const m={aud,to:$('#gTo').value,countries:$('#gTo').value,coins:+$('#gCoins').value,gems:+$('#gGems').value,item:it?{type:it,id:$('#gItemI').value}:null,title:{en:nodash($('#gTitle').value)},msg:{en:nodash($('#gMsg').value)},start:fromIn($('#gStart').value),expire:fromIn($('#gEnd').value),cap:+$('#gCap').value,onlyExisting:$('#gExist').value==='1',preview};
+ try{if(preview){const j=await lo('grant',m);$('#gReach').innerHTML=`Reaches about <b>${N(j.reach)}</b> registered players now${m.onlyExisting?'':' (new players can claim too until it ends)'}. Max per giveaway: 100,000 coins / 1,000 diamonds.`;return}
+  if(!confirm('Schedule this giveaway?'))return;m.title=await tr(m.title.en);m.msg=await tr(m.msg.en);m.preview=false;const j=await lo('grant',m);toast('Giveaway scheduled for about '+N(j.reach)+' players');loadAudit().then(renderRecent)}catch(e){toast(e.message,1)}}
+function renderPopups(){const P=ST.cfg.cfg.popups||[];$('#aRows').innerHTML=P.map((p,i)=>{const t=Date.now();const st=!p.on?['OFF','end']:p.end&&p.end<t?['ENDED','end']:p.start>t?['SOON','soon']:['LIVE','live'];
+ return `<tr><td><span class="pill draft">${E(p.kind.toUpperCase())}</span></td><td><b>${E(p.title.en||p.body.en||'')}</b></td><td>${{once:'Once',daily:'Once a day',always:'Every open'}[p.freq]}</td><td style="white-space:nowrap">${dd(p.start)} → ${p.end?dd(p.end):'no end'}</td><td>${E(p.countries||'All')}${p.langs?' · '+E(p.langs):''}</td><td><span class="pill ${st[1]}">${st[0]}</span></td><td style="white-space:nowrap"><button class="btn s" onclick="addPopup(null,${i})">Edit</button> <button class="btn s r" onclick="delPopup(${i})">Remove</button></td></tr>`}).join('')||'<tr><td colspan=7 class="empty">No popups yet. Add one for an event, a Jumu\'ah greeting or news.</td></tr>'}
+function addPopup(kind,i){const P=ST.cfg.cfg.popups||[];const p=i!=null?P[i]:{kind,title:{},body:{},btn:{},action:'none',freq:'once',on:true,start:Date.now(),end:Date.now()+7*864e5,countries:'',langs:''};
+ openM(`<h3>${i!=null?'Edit':'New'} ${E(p.kind)}</h3><div class="row"><div><label>Type</label><select class="in" id="ppK">${['popup','banner','ticker'].map(k=>`<option ${k===p.kind?'selected':''}>${k}</option>`).join('')}</select></div><div><label>Show</label><select class="in" id="ppF"><option value="once">Once</option><option value="daily">Once per day</option><option value="always">Every app open</option></select></div></div>
+ <label>Title (English, auto translated)</label><input class="in" id="ppT" value="${E(p.title.en||'')}"><label>Text</label><textarea class="in" id="ppB">${E(p.body.en||'')}</textarea>
+ <label>Image URL (optional, https)</label><input class="in" id="ppI" value="${E(p.img||'')}">
+ <div class="row"><div><label>Button text</label><input class="in" id="ppBt" value="${E(p.btn.en||'')}" placeholder="Play now"></div><div><label>Button opens</label><select class="in" id="ppA">${['none','events','store','offer','spin','daily','mail','tournaments','minigames','url'].map(a=>`<option ${a===p.action?'selected':''}>${a}</option>`).join('')}</select></div><div><label>Link (if url)</label><input class="in" id="ppU" value="${E(p.url||'')}"></div></div>
+ <div class="row"><div><label>Start</label><input class="in" type="datetime-local" id="ppS" value="${toLocalIn(p.start)}"></div><div><label>End</label><input class="in" type="datetime-local" id="ppE" value="${toLocalIn(p.end)}"></div></div>
+ <div class="row"><div><label>Countries (empty = all)</label><input class="in" id="ppC" value="${E(p.countries)}" placeholder="PK, IN"></div><div><label>Languages (empty = all)</label><input class="in" id="ppL" value="${E(p.langs)}" placeholder="ur, ar"></div><div><label>Community</label><select class="in" id="ppCm">${['all','muslim','hindu','sikh','christian','general'].map(c=>`<option ${c===(p.community||'all')?'selected':''}>${c}</option>`).join('')}</select></div></div>
+ <div class="flag"><div><b>On</b></div><button class="tog ${p.on!==false?'on':''}" id="ppOn" onclick="this.classList.toggle('on')"></button></div>
+ <div class="row" style="margin-top:14px"><button class="btn" onclick="closeM()">Cancel</button><button class="btn g" onclick="savePopup(${i==null?'null':i})">Publish</button></div>`);$('#ppF').value=p.freq}
+async function savePopup(i){const P=(ST.cfg.cfg.popups||[]).slice();const old=i!=null?P[i]:{};const t=nodash($('#ppT').value),b=nodash($('#ppB').value),bt=nodash($('#ppBt').value);
+ const p=Object.assign({},old,{kind:$('#ppK').value,freq:$('#ppF').value,title:t?await tr(t):{},body:b?await tr(b):{},btn:bt?await tr(bt):{},img:$('#ppI').value,action:$('#ppA').value,url:$('#ppU').value,start:fromIn($('#ppS').value),end:fromIn($('#ppE').value),countries:$('#ppC').value,langs:$('#ppL').value,community:$('#ppCm').value,on:$('#ppOn').classList.contains('on')});
+ if(i!=null)P[i]=p;else P.push(p);if(await saveCfg('popups',P)){closeM();renderPopups()}}
+async function delPopup(i){if(!confirm('Remove this popup?'))return;const P=(ST.cfg.cfg.popups||[]).slice();P.splice(i,1);await saveCfg('popups',P);renderPopups()}
+function renderMail(L){$('#mRows').innerHTML=L.map(m=>`<tr><td style="white-space:nowrap">${dt(m.start)}</td><td>${E(m.to)}</td><td>${rew(m)}</td><td>${E(m.title&&m.title.en)}</td><td>${N(m.claims)}${m.cap?' / '+N(m.cap):''}</td><td>${dd(m.expire)}</td><td>${m.revoked?'<span class="pill end">STOPPED</span>':`<button class="btn s r" onclick="revoke('${m.id}')">Stop</button>`}</td></tr>`).join('')||'<tr><td colspan=7 class="empty">No mail sent yet</td></tr>'}
+async function revoke(id){if(!confirm('Stop this mail? Players who already claimed keep it.'))return;try{await lo('grant/revoke',{id});toast('Stopped');load('announce')}catch(e){toast(e.message,1)}}
+async function saveCfg(section,value){try{const j=await lo('config/save',{section,value});ST.cfg.cfg=j.cfg;toast('Published config v'+j.cfg.v);if(ST.ov)ST.ov.cfgV=j.cfg.v;renderEnv();return true}catch(e){toast(e.message,1);return false}}
+const SKUN={ls_gems_100:'💎 100 + 200',ls_gems_500:'💎 500 + 1,200',ls_gems_1000:'💎 1,000 + 2,700',ls_gems_2500:'💎 2,500 + 7,500',ls_gems_5000:'💎 5,000 + 16,000',ls_gems_10000:'💎 10,000 + 35,000',ls_coins_10k:'🪙 10K coins',ls_coins_30k:'🪙 30K coins',ls_coins_100k:'🪙 100K coins',ls_coins_250k:'🪙 250K coins',ls_coins_1m:'🪙 1M coins',ls_coins_2m:'🪙 2M coins',ls_starter_pack:'⭐ Starter pack'};
+const DEFTAG={ls_gems_1000:'HOT DEAL',ls_coins_2m:'BEST',ls_starter_pack:'8X VALUE'};
+function renderStore(){const c=ST.cfg.cfg.store||{},P=c.packs||{};$('#stRows').innerHTML=ST.cfg.skus.map(s=>{const p=P[s]||{on:true,tag:DEFTAG[s]||'',bonus:0};return `<tr data-sku="${s}"><td><b>${SKUN[s]||s}</b><br><small class="mono">${s}</small></td><td><input class="in st-tag" value="${E(p.tag||'')}" placeholder="none" style="width:110px"></td><td><input class="in st-bonus" type="number" value="${p.bonus||0}" style="width:70px"></td><td><button class="tog st-on ${p.on!==false?'on':''}" onclick="this.classList.toggle('on')"></button></td></tr>`}).join('');
+ const o=c.offer||{};$('#ofSku').innerHTML=ST.cfg.skus.map(s=>`<option value="${s}" ${s===o.sku?'selected':''}>${SKUN[s]}</option>`).join('');$('#ofOn').classList.toggle('on',!!o.on);$('#ofTitle').value=(o.title&&o.title.en)||'';$('#ofText').value=(o.text&&o.text.en)||'';$('#ofBadge').value=o.badge||'';$('#ofFreq').value=o.freq||'daily';$('#ofStart').value=toLocalIn(o.start);$('#ofEnd').value=toLocalIn(o.end);
+ $('#ofState').innerHTML=o.on?'<span class="pill live">ON</span>':'<span class="pill end">OFF</span>'}
+async function saveStore(){const packs={};$$('#stRows tr').forEach(r=>{packs[r.dataset.sku]={tag:r.querySelector('.st-tag').value.toUpperCase(),bonus:+r.querySelector('.st-bonus').value,on:r.querySelector('.st-on').classList.contains('on')}});
+ const on=$('#ofOn').classList.contains('on');const offer=on?{on,sku:$('#ofSku').value,title:await tr(nodash($('#ofTitle').value)),text:await tr(nodash($('#ofText').value)),badge:$('#ofBadge').value,freq:$('#ofFreq').value,start:fromIn($('#ofStart').value),end:fromIn($('#ofEnd').value)}:null;
+ if(await saveCfg('store',{packs,offer}))renderStore()}
+function renderRewards(){const d=ST.cfg.cfg.daily;$('#drRows').innerHTML=d.map((x,i)=>`<tr><td>Day ${i+1}${i===6?' 🏆':''}</td><td><input class="in dr-c" type="number" value="${x.c||0}"></td><td><input class="in dr-g" type="number" value="${x.g||0}"></td></tr>`).join('');
+ const s=ST.cfg.cfg.spin;$('#spRows').innerHTML=s.map((x,i)=>`<tr><td>${i+1}</td><td><select class="in sp-k" onchange="spinEv()"><option value="c" ${x.k==='c'?'selected':''}>🪙 Coins</option><option value="g" ${x.k==='g'?'selected':''}>💎 Diamonds</option><option value="s" ${x.k==='s'?'selected':''}>🎲 Dice skin</option></select></td><td><input class="in sp-n" type="number" value="${x.n||0}" oninput="spinEv()"></td><td><input class="in sp-w" type="number" value="${x.w}" oninput="spinEv()"></td></tr>`).join('');spinEv()}
+function spinEv(){const r=$$('#spRows tr').map(t=>({k:t.querySelector('.sp-k').value,n:+t.querySelector('.sp-n').value,w:+t.querySelector('.sp-w').value}));const tot=r.reduce((a,x)=>a+x.w,0)||1;
+ const c=r.filter(x=>x.k==='c').reduce((a,x)=>a+x.n*x.w,0)/tot,g=r.filter(x=>x.k==='g').reduce((a,x)=>a+x.n*x.w,0)/tot;$('#spEv').innerHTML=`Average per spin: <b class="coin">${N(Math.round(c))} coins</b> and <b class="gem">${g.toFixed(1)} diamonds</b>. Chances: ${r.map(x=>Math.round(x.w/tot*100)+'%').join(' · ')}`}
+async function saveDaily(){const v=$$('#drRows tr').map(t=>({c:+t.querySelector('.dr-c').value,g:+t.querySelector('.dr-g').value}));if(await saveCfg('daily',v))renderRewards()}
+async function saveSpin(){const v=$$('#spRows tr').map(t=>({k:t.querySelector('.sp-k').value,n:+t.querySelector('.sp-n').value,w:+t.querySelector('.sp-w').value}));if(await saveCfg('spin',v))renderRewards()}
+let CODES=[];
+function renderCodes(L){CODES=L;$('#cRows').innerHTML=L.map((c,i)=>`<tr><td class="mono" style="font-size:13px"><b>${E(c.code)}</b></td><td>${rew(c)}</td><td>${N(c.uses)}${c.maxUses?' / '+N(c.maxUses):''}</td><td style="white-space:nowrap">${c.start?dd(c.start):'now'} → ${c.end?dd(c.end):'no end'}</td><td>${E(c.country||'All')}</td><td>${E(c.note||'')}</td><td><span class="pill ${c.on?'live':'end'}">${c.on?'ON':'OFF'}</span></td><td><button class="btn s" onclick="editCode(${i})">Edit</button></td></tr>`).join('')||'<tr><td colspan=8 class="empty">No codes yet</td></tr>'}
+function editCode(i){const c=i!=null?CODES[i]:{code:'',coins:5000,gems:10,maxUses:1000,on:true,note:''};openM(`<h3>${i!=null?'Edit':'New'} gift code</h3>
+ <div class="row"><div><label>Code (empty = random)</label><input class="in mono" id="cdC" value="${E(c.code)}" ${i!=null?'readonly':''} placeholder="EIDMUBARAK"></div><div><label>Max uses (0 = no limit)</label><input class="in" type="number" id="cdM" value="${c.maxUses||0}"></div></div>
+ <div class="row"><div><label>Coins</label><input class="in" type="number" id="cdCo" value="${c.coins||0}"></div><div><label>Diamonds</label><input class="in" type="number" id="cdG" value="${c.gems||0}"></div><div><label>Country only (optional)</label><input class="in" id="cdCt" value="${E(c.country||'')}" placeholder="PK"></div></div>
+ <div class="row"><div><label>Start</label><input class="in" type="datetime-local" id="cdS" value="${toLocalIn(c.start)}"></div><div><label>End</label><input class="in" type="datetime-local" id="cdE" value="${toLocalIn(c.end)}"></div></div>
+ <label>Note (only for you)</label><input class="in" id="cdN" value="${E(c.note||'')}" placeholder="X post 20 Nov">
+ <div class="flag"><div><b>On</b></div><button class="tog ${c.on?'on':''}" id="cdOn" onclick="this.classList.toggle('on')"></button></div>
+ <div class="row" style="margin-top:14px"><button class="btn" onclick="closeM()">Cancel</button><button class="btn g" onclick="saveCode()">Save code</button></div>`)}
+async function saveCode(){try{const j=await lo('codes/save',{code:$('#cdC').value,maxUses:+$('#cdM').value,coins:+$('#cdCo').value,gems:+$('#cdG').value,country:$('#cdCt').value,start:fromIn($('#cdS').value),end:fromIn($('#cdE').value),note:$('#cdN').value,on:$('#cdOn').classList.contains('on')});closeM();toast('Code '+j.code+' saved');load('codes')}catch(e){toast(e.message,1)}}
+function renderThemes(){const T=ST.themes,n=T.now;$('#thNow').innerHTML=`<span class="pill live">${E(n.active.toUpperCase())}</span>`;
+ $('#thNowB').innerHTML=`<div class="lst"><div><span>Active theme</span><b>${E(n.active)}</b></div><div><span>Until</span><b>${n.until?dt(n.until):'always (default)'}</b></div><div><span>Coming soon teasers</span><b>${n.teaser.length?n.teaser.map(t=>E(t.theme)).join(', '):'none'}</b></div></div>`;
+ const packs=Object.assign({default:{name:'Default Ludo Sultan look'}},T.themes.defs||{});$('#thPacks').innerHTML=Object.entries(packs).map(([k,v])=>`<div><span><b>${E(k)}</b> <span class="mut">${E(v.name||'')}</span></span><span class="pill ${k==='default'?'live':'draft'}">${k==='default'?'BUILT IN':'WAITING FOR BUNDLE'}</span></div>`).join('');
+ const S=T.themes.schedule||[];$('#thRows').innerHTML=S.map((s,i)=>`<tr data-i="${i}"><td><select class="in th-t">${Object.keys(packs).map(k=>`<option ${k===s.theme?'selected':''}>${k}</option>`).join('')}</select></td><td><input class="in th-n" value="${E(s.name||'')}" placeholder="Winter"></td><td><input class="in th-s" type="datetime-local" value="${toLocalIn(s.start)}"></td><td><input class="in th-e" type="datetime-local" value="${toLocalIn(s.end)}"></td><td><input class="in th-l" type="number" value="${s.leadDays||0}" style="width:64px"></td><td><button class="tog th-on ${s.on!==false?'on':''}" onclick="this.classList.toggle('on')"></button></td><td><button class="btn s r" onclick="ST.themes.themes.schedule=readSched();ST.themes.themes.schedule.splice(${i},1);renderThemes()">Remove</button></td></tr>`).join('')||'<tr><td colspan=7 class="empty">No themes scheduled. The default look is used.</td></tr>'}
+function readSched(){return $$('#thRows tr[data-i]').map(r=>{const o=ST.themes.themes.schedule[+r.dataset.i]||{};return Object.assign({},o,{theme:r.querySelector('.th-t').value,name:r.querySelector('.th-n').value,start:fromIn(r.querySelector('.th-s').value),end:fromIn(r.querySelector('.th-e').value),leadDays:+r.querySelector('.th-l').value,on:r.querySelector('.th-on').classList.contains('on')})})}
+function addSched(){ST.themes.themes.schedule=readSched();ST.themes.themes.schedule.push({theme:'default',name:'',start:Date.now()+864e5,end:Date.now()+15*864e5,leadDays:3,on:true});renderThemes()}
+async function saveThemes(){try{const j=await lo('themes/save',{schedule:readSched(),defs:ST.themes.themes.defs||{}});ST.themes.themes=j.themes;ST.themes.now=j.now;renderThemes();toast('Themes published')}catch(e){toast(e.message,1)}}
+function renderConfig(){const c=ST.cfg.cfg;$('#cfgV').textContent='v'+c.v;const F=ST.cfg.flagsMeta;$('#flN').textContent=F.filter(f=>c.flags[f[0]]).length+' of '+F.length+' on';
+ $('#flRows').innerHTML=F.map(f=>`<div class="flag"><div><b>${E(f[1])}</b><small>${E(f[2])}</small></div><button class="tog ${c.flags[f[0]]?'on':''}" data-f="${f[0]}" onclick="this.classList.toggle('on')"></button></div>`).join('');
+ const m=c.maintenance||{};$('#mtOn').classList.toggle('on',!!m.on);$('#mtMsg').value=(m.msg&&m.msg.en)||'';$('#mtUntil').value=toLocalIn(m.until);$('#mtBlock').value=m.blockOnline===false?'0':'1';$('#mtState').innerHTML=m.on?'<span class="pill warn">ON</span>':'<span class="pill live">OFF</span>';
+ const u=c.update||{};$('#upMin').value=u.minVc||0;$('#upLatest').value=u.latestVc||0;$('#upMsg').value=(u.msg&&u.msg.en)||'';
+ $('#varsTa').value=JSON.stringify(c.vars||{},null,2);$('#chatTa').value=((c.chat||{}).blocked||[]).join('\n')}
+async function saveFlags(){const v={};$$('#flRows .tog').forEach(t=>v[t.dataset.f]=t.classList.contains('on'));if(await saveCfg('flags',v))renderConfig()}
+async function saveMaint(){const on=$('#mtOn').classList.contains('on');if(on&&!confirm('Turn maintenance ON? Online play pauses for everyone.'))return;if(await saveCfg('maintenance',{on,msg:await tr(nodash($('#mtMsg').value)),until:fromIn($('#mtUntil').value),blockOnline:$('#mtBlock').value==='1'}))renderConfig()}
+async function saveUpdate(){if(await saveCfg('update',{minVc:+$('#upMin').value,latestVc:+$('#upLatest').value,msg:await tr(nodash($('#upMsg').value))}))renderConfig()}
+async function saveVars(){let v;try{v=JSON.parse($('#varsTa').value||'{}')}catch(e){return toast('JSON is not valid: '+e.message,1)}if(await saveCfg('vars',v))renderConfig()}
+async function saveChat(){if(await saveCfg('chat',{blocked:$('#chatTa').value}))renderConfig()}
+function showHist(){const H=ST.cfg.hist;openM(`<h3>Config history <span>restore any version</span></h3><div class="tw"><table><thead><tr><th>Version</th><th>Replaced at</th><th>By</th><th></th></tr></thead><tbody>${H.map(h=>`<tr><td>v${h.v}</td><td>${dt(h.t)}</td><td>${E(h.by)}</td><td><button class="btn s" onclick="revertCfg(${h.v})">Restore</button></td></tr>`).join('')||'<tr><td colspan=4 class="empty">No history yet</td></tr>'}</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn" onclick="closeM()">Close</button></div>`)}
+async function revertCfg(v){if(!confirm('Restore config v'+v+'?'))return;try{const j=await lo('config/revert',{v});ST.cfg.cfg=j.cfg;closeM();toast('Restored');load('config')}catch(e){toast(e.message,1)}}
+function renderMod(){const M=ST.mod;const open=M.reports.filter(r=>!r.handled);$('#rpN').textContent=open.length+' open';
+ $('#rpRows').innerHTML=M.reports.slice(0,80).map(r=>`<tr style="${r.handled?'opacity:.5':''}"><td style="white-space:nowrap">${dt(r.t)}</td><td><b>${E(r.name)}</b><br><small class="mono">${E(r.fid)}</small></td><td>${E(r.reason)}<br><small class="mut">${E(r.ctx||'')}</small></td><td>${E(r.byName)}</td><td>${r.count}</td><td style="white-space:nowrap">${r.pid?`<button class="btn s" onclick="go('players');openPlayer('${E(r.pid)}')">Open</button>`:''} ${r.handled?'':`<button class="btn s" onclick="handled('${E(r.key)}')">Done</button>`}</td></tr>`).join('')||'<tr><td colspan=6 class="empty">No reports 🎉</td></tr>';
+ const L=[...M.bans.map(b=>Object.assign({k:'ban'},b)),...M.mutes.map(b=>Object.assign({k:'mute'},b))];
+ $('#mdRows').innerHTML=L.map(b=>`<tr><td><span class="pill ${b.k==='ban'?'warn':'draft'}">${b.k.toUpperCase()}</span></td><td><b>${E(b.name)}</b><br><small class="mut">${E(b.reason)}</small></td><td>${b.until?'until '+dt(b.until):'permanent'}</td><td><button class="btn s" onclick="modOff('${b.k}','${E(b.pid)}')">Remove</button></td></tr>`).join('')||'<tr><td class="empty">Nobody banned or muted</td></tr>'}
+async function handled(key){await lo('mod/handled',{key});load('mod')}
+async function modSet(){try{await lo('mod/set',{kind:$('#mdKind').value,id:$('#mdId').value,hours:+$('#mdH').value,reason:$('#mdR').value});toast('Applied');load('mod')}catch(e){toast(e.message,1)}}
+async function modOff(kind,pid){try{await lo('mod/set',{kind,id:pid,off:true});toast('Removed');load('mod')}catch(e){toast(e.message,1)}}
+function renderOta(){const O=ST.ota.ota,B=O.bundles;const cur=B.find(b=>b.id===O.current),stg=O.staged&&B.find(b=>b.id===O.staged.id);const top=stg||cur||B[0];
+ $('#otaPauseB').textContent=O.paused?'▶ Resume updates':'⏸ Pause updates';
+ $('#otaSteps').innerHTML=top?[['Built',top.ver+' · '+Math.round(top.gzSize/1024)+' KB gz',1],['Signed','ECDSA P-256 offline key',1],['Checked','SHA-256 verified on upload',1],['Staged',stg?O.staged.rollout+'% of phones':'-',!!stg||!!cur],['Full release',cur?cur.ver+' live':'waiting for you',!!cur]].map(s=>`<div class="${s[2]?'ok':''}"><b>${s[0]}</b>${E(s[1])}</div>`).join(''):`<div><b>No bundles yet</b>Run tools/ota-publish.js to build, sign and upload one${ST.ota.hasKey?'':' (server has no OTA public key!)'}</div>`;
+ $('#otaMin').textContent=O.paused?'PAUSED':'current: '+(cur?cur.ver:'built-in');
+ $('#otaRows').innerHTML=B.map(b=>{const st={live:'live',staged:'soon',uploaded:'draft',replaced:'end',rolledback:'warn'}[b.status]||'end';
+  return `<tr><td class="mono">${E(b.ver)}<br><small class="mut">${dt(b.created)}</small></td><td>${E(b.note||'')}<br><small class="mut">app vc ${b.minVc||0}+</small></td><td>${b.status==='live'?'100%':b.status==='staged'?O.staged.rollout+'%':'-'}</td><td><span class="pill ${st}">${E(b.status.toUpperCase())}</span></td>
+  <td style="white-space:nowrap">${b.status==='live'?'':b.status==='staged'?`<button class="btn s g" onclick="otaStage('${b.id}',100)">Go 100%</button>`:`<button class="btn s" onclick="otaStage('${b.id}',10)">Stage 10%</button> <button class="btn s" onclick="otaStage('${b.id}',100)">${b.status==='uploaded'?'100%':'Restore'}</button>`}</td></tr>`}).join('')+`<tr><td class="mono">built-in</td><td>Copy inside the APK (safe fallback)</td><td>always</td><td><span class="pill end">FALLBACK</span></td><td>${O.current?`<button class="btn s" onclick="otaRollback('builtin')">Use</button>`:''}</td></tr>`;
+ const H=O.health||{};const tot=Object.values(H).reduce((a,h)=>a+h.boots,0)||0;const tb=top&&H[top.id]||{boots:0,errors:0,rollbacks:0};const pct=tot?Math.round(tb.boots/tot*100):0;
+ $('#otaPct').textContent=pct+'%';$('#otaRing').style.background=`conic-gradient(var(--grn) 0 ${pct}%,#2f1c57 ${pct}% 100%)`;$('#otaHT').textContent=top?top.ver:'';
+ $('#otaHealth').innerHTML=`<div><span>App starts on this bundle</span><b>${N(tb.boots)}</b></div><div><span>JS errors / 1k starts</span><b>${tb.boots?(tb.errors/tb.boots*1000).toFixed(1):'0'}</b></div><div><span>Auto rollbacks</span><b>${N(tb.rollbacks)}</b></div>`;
+ $('#otaErrs').innerHTML=ST.ota.errs.map(e=>`<div><span>${dt(e.t)} · ${E(e.b)}</span><span style="text-align:right;max-width:70%;overflow:hidden;text-overflow:ellipsis">${E(e.s)}</span></div>`).join('')||'<div class="mut">No errors reported</div>'}
+async function otaStage(id,rollout){if(!confirm(rollout>=100?'Release this bundle to all phones?':'Stage this bundle to '+rollout+'% of phones?'))return;try{await lo('ota/stage',{id,rollout});toast('Saved');load('ota')}catch(e){toast(e.message,1)}}
+async function otaRollback(to){if(!confirm('Roll back every phone to the '+(to==='builtin'?'built-in copy':to)+'? Phones switch on their next start.'))return;try{await lo('ota/rollback',{to});toast('Rolled back');load('ota')}catch(e){toast(e.message,1)}}
+async function otaPause(){try{await lo('ota/pause',{paused:!ST.ota.ota.paused});load('ota')}catch(e){toast(e.message,1)}}
+function renderAudit(){const q=($('#auQ').value||'').toLowerCase();const L=ST.audit.filter(a=>!q||JSON.stringify(a).toLowerCase().includes(q));
+ $('#auRows').innerHTML=L.map(a=>`<tr style="${a.undone?'opacity:.5':''}"><td style="white-space:nowrap">${dt(a.t)}</td><td>${E(a.by)}</td><td><span class="chip">${E(a.action)}</span></td><td>${E(a.target)}</td><td>${fmtChange(a.summary)}</td><td>${a.canUndo?`<button class="btn s" onclick="undo('${a.id}')">Undo</button>`:a.undone?'<span class="mut">undone</span>':''}</td></tr>`).join('')||'<tr><td colspan=6 class="empty">Nothing logged yet</td></tr>'}
+async function undo(id){if(!confirm('Undo this change?'))return;try{await lo('undo',{id});toast('Undone');await loadAudit();renderAudit();renderRecent()}catch(e){toast(e.message,1)}}
+function renderAdmins(){const o=ST.ov;$('#adSess').innerHTML=`<div><span>Signed in as</span><b>${E(o.user)}</b></div><div><span>Role</span><b>${E(o.role)}</b></div><div><span>Server uptime</span><b>${Math.round(o.uptime/3600*10)/10} h</b></div><div><span>Data store</span><b>${E(o.store)}</b></div>`}
+function openM(h){$('#mBody').innerHTML=h;$('#modal').classList.add('on')}function closeM(){$('#modal').classList.remove('on')}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeM()});
+boot();
+</script></body></html>

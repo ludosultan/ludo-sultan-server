@@ -89,5 +89,5 @@ module.exports=function(ctx){const {send,social}=ctx;
    if(a.hash&&!(await checkPw(String(m.pass||''),a.hash)))return err(ws,'wrong','Wrong password','delete'),true;
    const p=a.pid;await del(a);c.acct=null;try{social.purge&&social.purge(p)}catch(e){}send(ws,{t:'accdeleted'});break}
   default:err(ws,'bad','Unknown request')}}}
- return {handle,verifyGoogle,verifyFacebook,_A:A,ready:ensureLoaded}};
+ return {handle,verifyGoogle,verifyFacebook,_A:A,ready:ensureLoaded,pidForToken:tok=>{const a=bySession(tok);return a?a.pid:null},count:()=>A.size}};
 module.exports.verifyGoogle=verifyGoogle;module.exports.hashPw=hashPw;module.exports.checkPw=checkPw;
