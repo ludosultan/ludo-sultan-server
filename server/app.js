@@ -113,6 +113,12 @@ function fidOf(pid){return crypto.createHash('sha256').update('ls-friend:'+pid).
 const fids=new Map();// public friend code -> pid
 const social=require('./social.js')({clients,send,fids,fidOf,rooms,newRoom:(...a)=>newRoom(...a),joinRoom:(...a)=>joinRoom(...a)});
 function seatOf(r,pid){return r.seats.findIndex(s=>s.pid===pid)}
+// 3.14.4 coin entry for friend challenges and private Ludo tables. Same table as quick match (BETS_OK); 0 = free.
+// Coins live on the phone, so the client reports its balance with create/join/challenge and the server refuses obvious shortfalls.
+// Only 3.14.4+ clients (caps.bet) can create or join a coin table: older apps would get the payout without paying the entry.
+function ludoBet(c,m){const b=BETS_OK.includes(+m.bet)?(+m.bet):0;if(!b||!c.cb)return 0;if(m.coins!=null&&(+m.coins||0)<b)return 0;return b}
+function betJoinBlock(c,pid,r,m){if(!r||r.mg||r.public||!r.bet||r.started||r.seats.some(s=>s.pid===pid))return '';
+ if(!c.cb)return 'Please update Ludo Sultan to join coin tables.';if(m.coins!=null&&(+m.coins||0)<r.bet)return 'Not enough coins for this table.';return ''}
 const tour=require('./tour.js')({clients,send,rooms,newRoom:(...a)=>newRoom(...a),joinRoom:(...a)=>joinRoom(...a),startGame:(...a)=>startGame(...a),fidOf,FILLN,FILLA});
 const accounts=require('./accounts.js')({send,social});LO.bind({clients,rooms,accounts});
 const turn=require('./turn.js');
@@ -126,14 +132,15 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    c.name=String(m.name||'Player').slice(0,16);c.avatar=(a=>/^av:[a-z0-9_]{1,24}$/i.test(a)?a:a.slice(0,4))(String(m.avatar||'🦁'));
    c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started){if(r.mg){mg.onJoinStarted(r,c);mg.schedule(r)}else{send(ws,stateMsg(r));schedule(r);resendOver(r,ws)}}}return}
   if(!pid)return;const c=clients.get(pid);const r=c.room&&rooms.get(c.room);
+  if(m.t==='caps'){c.cb=!!m.bet;return} // 3.14.4: client understands coin entry at friend / private Ludo tables
   if(m.t==='ice'){turn.iceFor(pid).then(ice=>{try{send(ws,{t:'ice',servers:ice||[],ttl:turn.TTL})}catch(e){}});return}
   if(m.t==='skin'){const ok=v=>typeof v==='string'&&/^[a-z0-9]{1,16}$/.test(v)?v:'classic';c.tok=ok(m.tok);c.dice=ok(m.dice);try{social.setSkin(pid,c)}catch(e){}
    if(r)sendRoom(r);return}
   // 3.14.3 Play Integrity gate for joining online matches (only blocks in 'enforce' mode)
   if((m.t==='quick'||m.t==='join'||m.t==='create'||m.t==='challenge')&&!LO.gate(pid,'match')){send(ws,{t:'error',code:'integrity',msg:'Device check failed. Please install Ludo Sultan from Google Play and try again.'});return}
   switch(m.t){
-   case 'create':{const gname=mg.is(m.game)?m.game:(m.opts&&mg.is(m.opts.game)&&m.opts.game);if(gname){const rr=newRoom(mg.size(gname),{game:gname},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)rr.bet=bet;joinRoom(c,pid,rr);break}const n=(m.size|0)===6||(m.opts&&m.opts.six)?6:Math.min(4,Math.max(2,m.size|0||4));if(m.opts&&m.night!=null&&m.opts.night==null)m.opts.night=m.night;joinRoom(c,pid,newRoom(n,m.opts,false));break}
-   case 'join':{const rr=rooms.get(String(m.code||'').toUpperCase().trim());if(!rr)send(ws,{t:'error',msg:'Room not found'});else joinRoom(c,pid,rr);break}
+   case 'create':{const gname=mg.is(m.game)?m.game:(m.opts&&mg.is(m.opts.game)&&m.opts.game);if(gname){const rr=newRoom(mg.size(gname),{game:gname},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)rr.bet=bet;joinRoom(c,pid,rr);break}const n=(m.size|0)===6||(m.opts&&m.opts.six)?6:Math.min(4,Math.max(2,m.size|0||4));if(m.opts&&m.night!=null&&m.opts.night==null)m.opts.night=m.night;const nr=newRoom(n,m.opts,false);const bet=ludoBet(c,m);if(bet)nr.bet=bet;joinRoom(c,pid,nr);break}
+   case 'join':{const rr=rooms.get(String(m.code||'').toUpperCase().trim());if(!rr){send(ws,{t:'error',msg:'Room not found'});break}const why=betJoinBlock(c,pid,rr,m);if(why){send(ws,{t:'error',code:'bet',msg:why});break}joinRoom(c,pid,rr);break}
    case 'quick':{if(mg.is(m.game)){const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k='mg|'+m.game+(bet?('|b'+bet):'');if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.mg===m.game&&x.qkey===k&&x.seats.length<x.size);if(!rr){rr=newRoom(mg.size(m.game),{game:m.game},true);rr.qkey=k;if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}// queue key = player count + mode + night mode + house rule (blockade) + bet; only same-key players share a room.
      // 3.11.6: computer players fill empty seats after QUICK_MS (10 s) without enough real players
      const six=(m.size|0)===6;const md=six?'six':MODES.includes(m.mode)?m.mode:'classic';const sz=six?6:md==='team'?4:([2,3,4].includes(m.size|0)?(m.size|0):4);const nt=!!m.night,bl=!six&&!!m.blockade;
@@ -154,7 +161,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    case 'sync':if(r){sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else{send(ws,stateMsg(r));resendOver(r,ws)}}}break;
    case 'presence':{const out={};(Array.isArray(m.fids)?m.fids:[]).slice(0,100).forEach(f=>{f=String(f).toUpperCase();const cp=fids.get(f),cc=cp&&clients.get(cp);out[f]=cc?{online:!!(cc.ws&&cc.ws.readyState===1),name:cc.name,avatar:cc.avatar,playing:!!(cc.room&&rooms.get(cc.room)&&rooms.get(cc.room).started)}:{online:false}});send(ws,{t:'presence',list:out});break}
    case 'challenge':{const tp=fids.get(String(m.to||'').toUpperCase()),tc=tp&&clients.get(tp);if(!tc||!tc.ws||tc.ws.readyState!==1||tp===pid){send(ws,{t:'error',msg:'Friend is offline'});break}
-     if(mg.is(m.game)){const nr=newRoom(mg.size(m.game),{game:m.game},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,game:m.game,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}
+     if(mg.is(m.game)){const nr=newRoom(mg.size(m.game),{game:m.game},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,game:m.game,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);let bet=ludoBet(c,m);if(bet&&!tc.cb){bet=0;send(ws,{t:'toast',code:'freebet',msg:'Your friend needs the new app version for coin games. This game is free.'})}if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}
    case 'decline':{const rr=rooms.get(String(m.code||''));if(rr&&!rr.started&&rr.host){const hc=clients.get(rr.host);hc&&send(hc.ws,{t:'declined',name:c.name})}break}
    case 'lbpost':{const e={pid,fid:c.fid||'',name:String(m.name||'Player').slice(0,16),av:String(m.av||'').slice(0,4),tr:Math.max(0,Math.min(1e6,m.tr|0)),wins:Math.max(0,m.wins|0),cc:String(m.cc||'').slice(0,3).toUpperCase(),city:String(m.city||'').slice(0,40),t:Date.now()};const old=LB.get(pid);e.gm=m.gm?lbg.clean(m.gm):(old&&old.gm)||{};LB.set(pid,e);lbSave();break}
    case 'lb':{const sc=['local','national','friends','global'].includes(m.scope)?m.scope:'global';let a=[...LB.values()];
