@@ -14,7 +14,7 @@ const P=(p,b,h)=>J(p,{method:'POST',headers:Object.assign({'Content-Type':'appli
  for(let i=0;i<60;i++){try{if((await fetch(B+'/health')).ok)break}catch(e){}await new Promise(r=>setTimeout(r,250))}
  try{
  console.log('public api');
- let c=await J('/api/config');T('config 200',c.s===200&&c.j.flags.onlinePlay===true&&c.j.daily.length===7&&c.j.spin.length===8&&c.j.theme.active==='default');
+ let c=await J('/api/config');T('config 200',c.s===200&&c.j.flags.onlinePlay===true&&c.j.daily.length===7&&c.j.spin.length===8&&c.j.theme.active==='default'&&Array.isArray(c.j.badges)&&c.j.badges.length===20&&c.j.badges[12].g===730&&c.j.badges[19].g===5000);
  const et=c.h.get('etag');T('config 304 with etag',(await J('/api/config',{headers:{'If-None-Match':et}})).s===304);
  const pid='t-'+crypto.randomUUID();let h=await P('/api/hello',{pid,ver:'3.14.0',vc:47,lang:'ur',locale:'ur-PK',name:'Ali',coins:1000,gems:5});
  T('hello issues device key',h.s===200&&h.j.key&&h.j.fresh===true);const key=h.j.key;
@@ -38,9 +38,13 @@ const P=(p,b,h)=>J(p,{method:'POST',headers:Object.assign({'Content-Type':'appli
  s=await A('config/save',{section:'popups',value:[{kind:'popup',title:{en:'Jumu\u2019ah Mubarak \u2014 gift'},body:{en:'Hi'},freq:'daily',start:Date.now()-1000,end:Date.now()+864e5,countries:'PK, IN',action:'store'}]});
  T('popup saved, em dash removed',s.s===200&&!/\u2014/.test(s.j.cfg.popups[0].title.en)&&s.j.cfg.popups[0].countries==='PK,IN');
  s=await A('config/save',{section:'store',value:{packs:{ls_gems_1000:{tag:'EID DEAL',bonus:20,on:true},ls_coins_2m:{on:false}},offer:{on:true,sku:'ls_starter_pack',title:{en:'Starter'},freq:'daily'}}});
+ const badges=(await A('config')).j.cfg.badges;T('default badges',badges.length===20&&badges[0].g===5&&badges[12].n==='Elite Hunter'&&badges[12].g===730&&badges[19].g===5000);
+ s=await A('config/save',{section:'badges',value:badges.map((b,i)=>Object.assign({},b,i===19?{g:6000}:{}))});T('save badges',s.s===200&&s.j.cfg.badges[19].g===6000);
+ T('bad badges rejected',(await A('config/save',{section:'badges',value:[{n:'x',g:1}]})).s===400);
+
  T('store saved',s.s===200&&s.j.cfg.store.hidden.includes('ls_coins_2m')&&s.j.cfg.store.offer.sku==='ls_starter_pack');
  await new Promise(r=>setTimeout(r,16000));// public config cache 15 s
- c=await J('/api/config');T('public config updated',c.j.flags.voice===false&&c.j.daily[0].c===100&&c.j.popups.length===1&&c.j.store.packs.ls_gems_1000.bonus===20);
+ c=await J('/api/config');T('public config updated',c.j.flags.voice===false&&c.j.daily[0].c===100&&c.j.popups.length===1&&c.j.store.packs.ls_gems_1000.bonus===20&&c.j.badges[19].g===6000);
  const hist=(await A('config')).j.hist;T('config history',hist.length>=4);
  const rv=await A('config/revert',{v:hist[hist.length-1].v});T('revert config',rv.s===200&&rv.j.cfg.flags.voice===true);
  console.log('mail / grants');

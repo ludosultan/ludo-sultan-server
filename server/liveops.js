@@ -11,6 +11,13 @@ const FLAGS=[['onlinePlay','Online play','Quick match, rooms, tables'],['voice',
  ['tournaments','Tournaments','8-player cups'],['events','Events hub','Server events and cups'],['spin','Lucky Spin','Daily free spin'],['daily','Daily rewards','7-day login calendar'],
  ['rewardedAds','Rewarded ads','Free coins and diamonds buttons'],['customEmoji','Custom emoji maker','Make your own emojis'],['clubsChat','Clubs chat','Club messages'],
  ['dm','Private messages','Player to player chat'],['shop','Store','Coins and diamonds shop'],['nightMode','Night mode board','Truck night scene'],['mail','Mailbox','Gifts and messages inbox'],['promo','Gift codes','Redeem code box in settings']];
+const DEF_BADGES=[
+ {n:'Newcomer',g:5,w:0,k:0},{n:'First Steps',g:10,w:30,k:0},{n:'Rising Star',g:20,w:40,k:.5},{n:'Steady Hand',g:35,w:45,k:.7},
+ {n:'Competitor',g:55,w:48,k:.8},{n:'Hunter',g:80,w:50,k:1.0},{n:'Fighter',g:115,w:52,k:1.1},{n:'Striker',g:160,w:54,k:1.2},
+ {n:'Tactician',g:220,w:56,k:1.3},{n:'Warrior',g:300,w:57,k:1.4},{n:'Sharp Blade',g:405,w:58,k:1.5},{n:'Veteran Champion',g:545,w:60,k:1.7},
+ {n:'Elite Hunter',g:730,w:61,k:1.9},{n:'Shadow',g:975,w:62,k:2.0},{n:'Grand Strategist',g:1295,w:63,k:2.2},{n:'Unstoppable',g:1715,w:64,k:2.4},
+ {n:'Legend Hunter',g:2260,w:66,k:2.6},{n:'Apex Hunter',g:2970,w:67,k:2.8},{n:'Immortal',g:3890,w:69,k:3.0},{n:'Sultan of Ludo',g:5000,w:70,k:3.2}];
+const copyBadges=a=>(a||DEF_BADGES).map(b=>({n:b.n,g:b.g,w:b.w,k:b.k}));
 const DEF_CFG=()=>({v:1,updated:Date.now(),
  flags:Object.fromEntries(FLAGS.map(f=>[f[0],true])),
  daily:[{c:200},{g:3},{g:5},{c:300,g:2},{c:150,g:2},{c:400,g:3},{c:750,g:10}],
@@ -20,12 +27,18 @@ const DEF_CFG=()=>({v:1,updated:Date.now(),
  maintenance:{on:false,msg:{en:'Ludo Sultan is getting a quick update. Online play is back soon. You can still play offline.'},until:0,blockOnline:true},
  update:{minVc:0,latestVc:0,msg:{en:'A new version of Ludo Sultan is ready with new features and fixes.'},url:'https://play.google.com/store/apps/details?id=com.ludosultan.game'},
  vars:{},
+ badges:copyBadges(),
  chat:{blocked:[]},
  mailPoll:300});
 const SKUS=['ls_gems_100','ls_gems_500','ls_gems_1000','ls_gems_2500','ls_gems_5000','ls_gems_10000','ls_coins_10k','ls_coins_30k','ls_coins_100k','ls_coins_250k','ls_coins_1m','ls_coins_2m','ls_starter_pack'];
 const CAP={personalCoins:50e6,personalGems:5e4,audienceCoins:1e5,audienceGems:1000,codeCoins:1e5,codeGems:1000};
 const clean=(s,n)=>String(s==null?'':s).replace(/[\u0000-\u001f]/g,' ').replace(/[\u2013\u2014]/g,'-').slice(0,n);
 const int=(x,lo,hi)=>Math.max(lo,Math.min(hi,Math.round(+x||0)));
+function normBadges(x){if(!Array.isArray(x)||x.length!==20)throw new Error('20 badges needed');
+ const out=x.map((y,i)=>{const n=clean(y&&y.n!=null?y.n:DEF_BADGES[i].n,40).trim();const g=int(y&&y.g,1,1e7);
+  const w=Math.max(0,Math.min(100,+(y&&y.w)||0)),k=Math.max(0,Math.min(100,+(y&&y.k)||0));
+  if(!n)throw new Error('Badge '+(i+1)+' needs a name');return {n,g,w:Math.round(w*10)/10,k:Math.round(k*100)/100}});
+ for(let i=1;i<20;i++)if(!(out[i].g>out[i-1].g))throw new Error('Games must increase at each badge');return out}
 const now=()=>Date.now();
 const dayKey=t=>new Date(t||now()).toISOString().slice(0,10);
 const rid=p=>p+crypto.randomBytes(5).toString('hex');
@@ -123,7 +136,7 @@ let cfgCache={at:0,etag:'',json:''};
 function publicConfig(){const d=S(),c=d.cfg,t=now();let ev={events:[],rewards:{}};try{ev=require('./events.js').publicConfig()}catch(e){}
  return {v:c.v,now:t,flags:c.flags,daily:c.daily,spin:c.spin,store:c.store,
   popups:(c.popups||[]).filter(p=>p.on!==false&&(!p.end||p.end>t)&&(!p.start||p.start-t<14*864e5)),
-  maintenance:maintenance(),update:c.update,vars:c.vars,chat:c.chat,mailPoll:c.mailPoll||300,
+  maintenance:maintenance(),update:c.update,vars:c.vars,badges:c.badges||copyBadges(),chat:c.chat,mailPoll:c.mailPoll||300,
   rewards:ev.rewards,events:ev.events,theme:themeNow(),ota:{enabled:!d.ota.paused}}}
 function configJson(){if(now()-cfgCache.at<15e3)return cfgCache;const j=JSON.stringify(publicConfig());cfgCache={at:now(),etag:'"'+sha(j.replace(/"now":\d+,/,'')).slice(0,16)+'"',json:j};return cfgCache}
 function bust(){cfgCache.at=0}
@@ -237,6 +250,7 @@ async function adminApi(req,res,r,a){const G=req.method==='GET';const m=G?{}:awa
   else if(sec==='store'){const p={};for(const s of SKUS){const y=x&&x.packs&&x.packs[s];if(y)p[s]={on:y.on!==false,tag:clean(y.tag,14),bonus:int(y.bonus,0,1000)}}c.store={packs:p,hidden:SKUS.filter(s=>p[s]&&p[s].on===false),offer:normOffer(x&&x.offer)}}
   else if(sec==='maintenance'){c.maintenance={on:!!x.on,msg:tx(x.msg,300),until:+x.until||0,blockOnline:x.blockOnline!==false}}
   else if(sec==='update'){c.update={minVc:int(x.minVc,0,1e6),latestVc:int(x.latestVc,0,1e6),msg:tx(x.msg,300),url:/^https:\/\//.test(x.url||'')?clean(x.url,300):DEF_CFG().update.url}}
+  else if(sec==='badges'){c.badges=normBadges(x)}
   else if(sec==='vars'){if(!x||typeof x!=='object'||Array.isArray(x))throw new Error('Remote values must be an object');const j=JSON.stringify(x);if(j.length>20000)throw new Error('Too big');c.vars=JSON.parse(j)}
   else if(sec==='chat'){c.chat={blocked:(Array.isArray(x.blocked)?x.blocked:String(x.blocked||'').split(/[\n,]+/)).map(s=>clean(s,40).trim().toLowerCase()).filter(Boolean).slice(0,500)}}
   else if(sec==='popups'){c.popups=(Array.isArray(x)?x:[]).slice(0,30).map(normPopup)}
@@ -328,4 +342,4 @@ function undo(e,a){const d=S(),u=e.undo;
 // chat word filter used by the WebSocket server (match chat, DMs, club chat)
 function filterText(t){const L=(S().cfg.chat||{}).blocked||[];if(!L.length||!t)return t;let s=String(t);for(const w of L){if(!w)continue;const re=new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');s=s.replace(re,m=>'*'.repeat(m.length))}return s}
 function flag(k){const f=S().cfg.flags;return !f||f[k]!==false}
-module.exports={flag,handle,bind,banned,muted,maintenance,stat,audit,adminOf,filterText,publicConfig,hello,claim,pending,normGrant,redeem,otaManifest,verifyBundle,totp,totpOk,_S:S,_P:P,FLAGS,CAP};
+module.exports={flag,handle,bind,banned,muted,maintenance,stat,audit,adminOf,filterText,publicConfig,hello,claim,pending,normGrant,redeem,otaManifest,verifyBundle,totp,totpOk,_S:S,_P:P,FLAGS,CAP,DEF_BADGES,normBadges};
