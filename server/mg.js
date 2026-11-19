@@ -215,7 +215,7 @@ function act(r,pi,m){
     else throw new Error('bad act');
   }else if(name==='carrom'){
     if(a==='place'){if(!CR.placeStriker(g,m.x))throw new Error('bad place')}
-    else if(a==='shoot'){if(m.x!=null)CR.placeStriker(g,m.x);CR.shoot(g,+m.ang,+m.pow);CR.simulate(g);const ev=CR.resolve(g);r.lastShot={x:g.striker.x,ang:+m.ang,pow:+m.pow};r.lastEvents=(ev&&ev.events)||[]}
+    else if(a==='shoot'){if(m.x!=null)CR.placeStriker(g,m.x);const sx=g.striker.x;CR.shoot(g,+m.ang,+m.pow);CR.simulate(g);const ev=CR.resolve(g);r.lastShot={x:sx,ang:+m.ang,pow:+m.pow};r.lastEvents=(ev&&ev.events)||[]}
     else throw new Error('bad act');
   }else throw new Error('unknown game');
 }

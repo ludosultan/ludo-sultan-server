@@ -18,7 +18,8 @@ cr.new=function(o){o=o||{};const coins=[];let id=0;const c0=W/2;coins.push({id:i
 cr.baseY=p=>p===0?W-150:150;
 cr.side=p=>p===0?'w':'b';
 cr.minX=SR+POCK-8;cr.maxX=W-cr.minX;
-cr.placeStriker=function(g,x){x=Math.max(cr.minX+40,Math.min(cr.maxX-40,x));g.striker.x=x;g.striker.y=cr.baseY(g.turn);g.striker.vx=g.striker.vy=0;g.striker.in=false;
+cr.bx0=180;cr.bx1=W-180;// striker stays between the two red baseline circles
+cr.placeStriker=function(g,x){x=Math.max(cr.bx0,Math.min(cr.bx1,+x||W/2));g.striker.x=x;g.striker.y=cr.baseY(g.turn);g.striker.vx=g.striker.vy=0;g.striker.in=false;
  // nudge if overlapping a coin on the baseline (allowed only on free spots)
  return !g.coins.some(c=>!c.in&&Math.hypot(c.x-x,c.y-g.striker.y)<CR+SR)};
 cr.shoot=function(g,angle,power){if(g.phase!=='aim')throw new Error('not aiming');const sp=Math.max(3,Math.min(32,power));g.striker.vx=Math.cos(angle)*sp;g.striker.vy=Math.sin(angle)*sp;g.phase='roll';g.shotPocketed=[];g.strikerIn=false;g.shots++};
@@ -73,7 +74,7 @@ cr.ghost=function(c,pocket,rr){// striker centre position to send coin c into po
 // AI: try geometric candidates, test by simulation, pick best
 cr.aiShot=function(g,skill){skill=skill==null?1:skill;const p=g.turn,me=cr.side(p),by=cr.baseY(p);const cands=[];const qOn=g.coins.some(c=>c.t==='q'&&!c.in),ownLeft=g.coins.filter(c=>!c.in&&c.t===me).length,lastOnly=qOn&&ownLeft===1&&!g.queen.pending;/* last coin would just come back: go for the queen first */
  const mine=g.coins.filter(c=>!c.in&&((c.t===me&&!lastOnly)||(c.t==='q'&&!g.queen.pending))),needQ=g.queen.pending&&g.queen.by===p;
- const xs=[];for(let x=cr.minX+60;x<=cr.maxX-60;x+=(cr.maxX-cr.minX-120)/8)xs.push(x);
+ const xs=[];for(let x=cr.bx0;x<=cr.bx1+1;x+=(cr.bx1-cr.bx0)/8)xs.push(x);
  for(const c of mine){if(needQ&&c.t==='q')continue;for(const pk of cr.pockets){const gp=cr.ghost(c,pk,SR);for(const sx of xs){const ang=Math.atan2(gp[1]-by,gp[0]-sx);if(Math.sin(ang)*(p===0?-1:1)<=0.05)continue;
    // striker must not hit another coin first: rough line check
    const dist=Math.hypot(gp[0]-sx,gp[1]-by);const dpk=Math.hypot(pk[0]-c.x,pk[1]-c.y);cands.push({x:sx,ang,pow:Math.min(30,6+dist/55+dpk/70)})}}}
