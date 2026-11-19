@@ -5,13 +5,14 @@ const L=require(path.join(__dirname,'..','logic.js'));const L6=require(path.join
 const PORT=+process.env.PORT||8080,TURN_MS=+process.env.TURN_MS||10000,BOT_MS=+process.env.BOT_MS||900,
  OFFLINE_MS=+process.env.OFFLINE_MS||1500,QUICK_MS=+process.env.QUICK_MS||10000,ANIM_MS=+process.env.ANIM_MS||1400,NOMOVE_MS=+process.env.NOMOVE_MS||900;
 const ROOT=path.join(__dirname,'..');
-const store=require('./store.js');const mg=require('./mg.js');const LO=require('./liveops.js');
+const store=require('./store.js');const mg=require('./mg.js');const EV3=require('./events3.js'),WAL=require('./wallet.js');const LO=require('./liveops.js');
 const lbg=require('./lbg.js');const mgApi={};mg.bind(mgApi);const LB=new Map();for(const e of (store.get('leaderboard')||[]))if(e&&e.pid)LB.set(e.pid,e);
 function lbSave(){store.set('leaderboard',[...LB.values()],2000)}
 const MIME={'.html':'text/html','.js':'application/javascript','.png':'image/png','.json':'application/json'};
 const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.split('?')[0]);if(u==='/')u='/index.html';
  if(u==='/health'){res.end('ok');return}
  try{if(LO.handle(req,res,u))return}catch(e){console.error('liveops',e.message);res.statusCode=500;res.end('error');return}
+ try{if(EV3.handle(req,res,u)||WAL.handle(req,res,u))return}catch(e){console.error('ev3/wallet',e.message);res.statusCode=500;res.end('error');return}
  try{if(require('./events.js').handle(req,res,u))return}catch(e){console.error('events',e.message);res.statusCode=500;res.end('error');return}
  if(u==='/turn-status'){res.end(require('./turn.js').enabled()?'turn:on':'turn:off');return}
  if(u==='/health/db'){res.setHeader('Content-Type','application/json');store.ping().then(x=>res.end(JSON.stringify(x))).catch(e=>{res.statusCode=500;res.end(JSON.stringify({ok:false,error:'db'}))});return}
@@ -78,7 +79,7 @@ function leaveRoom(pid){const c=clients.get(pid);if(!c||!c.room)return;const r=r
  if(!r.started){r.seats=r.seats.filter(s=>s.pid!==pid);if(r.host===pid)r.host=(r.seats.find(s=>s.pid)||{}).pid||null;if(!r.seats.length){clearTimeout(r.qt);rooms.delete(r.code)}else sendRoom(r)}
  else{const s=r.seats.find(s=>s.pid===pid);if(s){s.bot=true;s.name+=' (left)';s.pid=null}sendRoom(r);schedule(r);cleanup(r)}}
 function cleanup(r){if(r.seats.every(s=>!s.pid)){clearTimeout(r.timer);rooms.delete(r.code)}}
-function startGame(r){LO.stat('matches');if(r.mg)return mg.startGame(r);clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
+function startGame(r){LO.stat('matches');if(r.mg)return mg.startGame(r);clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.startedAt=Date.now();r.caps=r.seats.map(()=>0);r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
 function isAuto(r,i){const s=r.seats[i];if(s.bot)return BOT_MS;const c=clients.get(s.pid);if(!c||c.room!==r.code||!c.ws||c.ws.readyState!==1)return OFFLINE_MS;if(c.away)return Math.min(OFFLINE_MS,1500);return 0}
 function schedule(r,extraDelay=0){if(r.mg)return mg.schedule(r,extraDelay);if(!r.started||(r.phase!=='roll'&&r.phase!=='move'))return;clearTimeout(r.timer);const a=isAuto(r,r.g.turn);
  const ms=a?a+extraDelay:Math.max(0,r.deadline-Date.now())+extraDelay;r.timer=setTimeout(()=>autoAct(r),ms)}
@@ -99,14 +100,14 @@ function doRoll(r,re){if(r.phase!=='roll'&&!re)return;const pi=r.g.turn;const A=
  if(!moves.length){r.timer=setTimeout(()=>endTurn(r),Math.max(wn,NOMOVE_MS));return}
  r.phase='move';r.moves=moves;r.deadline=Date.now()+TURN_MS;schedule(r,700)}
 function doMove(r,o){if(r.phase!=='move')return false;const pi=r.g.turn,A=LG(r);o=norm(r,pi,o);if(!A.canUse(r.g,pi,o))return false;r.rerollOpen=false;const from=A.from(r.g,pi,o);
- const res=A.useDie(r.g,pi,o);r.phase='busy';clearTimeout(r.timer);
+ const res=A.useDie(r.g,pi,o);r.phase='busy';clearTimeout(r.timer);if(res&&res.captured&&res.captured.length&&r.caps)r.caps[pi]=(r.caps[pi]|0)+res.captured.length;
  bc(r,{t:'moved',six:!!r.six,pi,pj:r.six?o.pj:pi,ti:o.ti,di:o.di,dice:res.d,from,res});
  const steps=from<0?1:res.d;const anim=Math.min(ANIM_MS,200+steps*180)+(res.arrow?450:0);
  if(A.over(r.g)){finishGame(r,anim);return true}
  const os=res.done&&!r.six?[]:A.options(r.g,pi);
  if(os.length){r.timer=setTimeout(()=>{r.phase='move';r.moves=os;r.dice=0;r.deadline=Date.now()+TURN_MS;bc(r,stateMsg(r));schedule(r,300)},anim);return true}
  r.timer=setTimeout(()=>endTurn(r),anim);return true}
-function finishGame(r,delay){try{betPay(r)}catch(e){}r.phase='over';clearTimeout(r.timer);const order=LG(r).standings(r.g);r.overRank=order;r.timer=setTimeout(()=>{bc(r,{t:'over',six:!!r.six,rank:order,mode:r.opts.mode,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null});try{tour.onOver(r,order)}catch(e){console.error('tour',e.message)}},delay)}
+function finishGame(r,delay){try{betPay(r)}catch(e){}r.phase='over';clearTimeout(r.timer);const order=LG(r).standings(r.g);r.overRank=order;try{EV3.onMatchOver(r,order)}catch(e){console.error('ev3',e.message)}r.timer=setTimeout(()=>{bc(r,{t:'over',six:!!r.six,rank:order,mode:r.opts.mode,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null});try{tour.onOver(r,order)}catch(e){console.error('tour',e.message)}},delay)}
 // a client that was offline when the game ended still gets the result
 function resendOver(r,ws){if(r.phase==='over'&&r.overRank)setTimeout(()=>send(ws,{t:'over',six:!!r.six,rank:r.overRank,mode:r.opts.mode,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null}),50)}
 function fidOf(pid){return crypto.createHash('sha256').update('ls-friend:'+pid).digest('hex').slice(0,6).toUpperCase()}
@@ -175,13 +176,14 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    case 'lbmy':send(ws,{t:'lbmy',ranks:lbg.ranksFor([...LB.values()],pid)});break;
    case 'leave':leaveRoom(pid);send(ws,{t:'left'});break;
    case 'mg':case 'mgact':case 'mgsync':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}send(ws,{t:'mgerr',msg:'not in a mini-game'});break;
-   default:if(r&&r.mg&&mg.handle(m,pid,c,ws,r))break;if(tour.handle(m,pid,c,ws))break;if(accounts.handle(m,pid,c,ws))break;social.handle(m,pid,c,ws);
+   default:if((m.t==='evscore'||m.t==='evlb')&&EV3.handleWs(m,pid,send,ws))break;if(r&&r.mg&&mg.handle(m,pid,c,ws,r))break;if(tour.handle(m,pid,c,ws))break;if(accounts.handle(m,pid,c,ws))break;social.handle(m,pid,c,ws);
   }});
  ws.on('close',()=>{const c=pid&&clients.get(pid);if(c&&c.ws===ws){c.ws=null;social.onClose(pid,c);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started)schedule(r)}
    // forget idle clients after 5 min
    setTimeout(()=>{const cc=clients.get(pid);if(cc&&!cc.ws){leaveRoom(pid);clients.delete(pid)}},+process.env.FORGET_MS||300000)}})});
 setInterval(()=>wss.clients.forEach(ws=>{if(!ws.isAlive)return ws.terminate();ws.isAlive=false;ws.ping()}),30000).unref();
 Object.assign(mgApi,{rooms,clients,send,bc:typeof bc==='function'?bc:null,sendRoom,fidOf,seatOf,isAuto,cleanup,social,TURN_MS,BOT_MS,OFFLINE_MS,QUICK_MS,BETS_OK,addFill,addBot,W30});
+EV3.boot();
 server.listen(PORT,()=>console.log('Ludo Sultan server on http://localhost:'+PORT+' (store: '+store.info+')'));
 let stopping=false;function shutdown(){if(stopping)return;stopping=true;const k=setTimeout(()=>process.exit(0),8000);social.flush();store.close().catch(e=>console.error('flush',e.message)).finally(()=>{clearTimeout(k);process.exit(0)})}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);

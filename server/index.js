@@ -7,5 +7,8 @@ store.init({
  leaderboard:{file:process.env.LB_FILE||path.join(__dirname,'data','leaderboard.json'),def:[]},
  // 3.14 liveops: config/mail/codes/moderation/audit/OTA/themes (one row per section in Postgres) + device registry
  liveops:{file:process.env.LO_FILE||path.join(__dirname,'data','liveops.json'),def:{},split:true},
- loplayers:{file:process.env.LOP_FILE||path.join(__dirname,'data','loplayers.json'),def:{}}
+ loplayers:{file:process.env.LOP_FILE||path.join(__dirname,'data','loplayers.json'),def:{}},
+ // 3.15: server wallet (one row per player) and events v3 scores/joins (one row per event)
+ wallet:{file:process.env.WAL_FILE||path.join(__dirname,'data','wallet.json'),def:{},split:true},
+ ev3:{file:process.env.EV3_FILE||path.join(__dirname,'data','ev3.json'),def:{},split:true}
 }).then(()=>require('./app.js')).catch(e=>{console.error('FATAL: could not load data store:',e.message);process.exit(1)});

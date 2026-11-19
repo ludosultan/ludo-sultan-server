@@ -99,6 +99,7 @@ function claim(pid,p,id){const g=S().mail.find(x=>x.id===id);if(!g||!matches(g,p
  p.c=p.c||[];if(p.c.includes(id))return {ok:false,error:'claimed'};if(g.cap&&(g.claims||0)>=g.cap)return {ok:false,error:'empty'};
  p.c.push(id);if(p.c.length>400)p.c=p.c.slice(-400);g.claims=(g.claims||0)+1;g.coinsOut=(g.coinsOut||0)+g.coins;g.gemsOut=(g.gemsOut||0)+g.gems;
  const o=day();o.claims++;if(g.coins>0)o.coins+=g.coins;if(g.gems>0)o.gems+=g.gems;saveP();save();
+ try{require('./wallet.js').onMailClaim(pid,g)}catch(e){console.error('wallet claim',e.message)}// 3.15: server wallet (only players who have one)
  return {ok:true,grant:{id:g.id,coins:g.coins,gems:g.gems,item:g.item||null,title:g.title}}}
 function normGrant(m,by,role){const aud=['player','list','all','country'].includes(m.aud)?m.aud:'player';const personal=aud==='player'||aud==='list';
  if(role==='support'&&!personal)throw new Error('Support role can only send to single players');
@@ -126,6 +127,10 @@ function redeem(pid,p,code,ip){const k=pid+'|'+ip;const r=redeemTries.get(k)||{n
  c.uses=(c.uses||0)+1;c.by[pid]=t;const ks=Object.keys(c.by);if(ks.length>20000)delete c.by[ks[0]];stat('redeems');
  const g={id:rid('g'),aud:'player',pid,coins:c.coins,gems:c.gems,item:c.item||null,title:{en:'Gift code '+C},msg:{en:''},kind:'code',created:t,start:t,expire:t+7*864e5,by:'code:'+C,claims:0};
  S().mail.push(g);trimMail();save();return Object.assign(claim(pid,p,g.id),{code:C})}
+// 3.15 events v3: personal reward mail created by the server (milestones, ranks). Works for every app version (mailbox).
+function grantTo(pid,o){pid=clean(pid,40);if(!pid)return null;const t=now();const g={id:rid('g'),aud:'player',pid,coins:Math.trunc(+o.coins||0),gems:Math.trunc(+o.gems||0),item:o.item&&o.item.id?{type:clean(o.item.type||'ev3',16),id:clean(o.item.id,40),n:Math.max(1,o.item.n|0||1)}:null,
+ title:o.title&&typeof o.title==='object'?o.title:{en:String(o.title||'Event reward').slice(0,80)},msg:o.msg&&typeof o.msg==='object'?o.msg:{en:String(o.msg||'').slice(0,200)},kind:o.kind||'event',created:t,start:t,expire:t+60*864e5,by:'events',reason:String(o.reason||'').slice(0,120),ref:o.ref||undefined};
+ S().mail.push(g);trimMail();save();return g}
 function trimMail(){const m=S().mail;const t=now();for(let i=m.length-1;i>=0&&m.length>3000;i--){if(m[i].expire&&m[i].expire<t-30*864e5)m.splice(i,1)}}
 // ---------------- themes (engine: default + scheduled packs delivered by the OTA bundle) ----------------
 function themeNow(){const th=S().themes,t=now();const live=(th.schedule||[]).filter(s=>s.on!==false&&s.start<=t&&s.end>t).sort((a,b)=>b.start-a.start)[0];
@@ -371,4 +376,4 @@ function undo(e,a){const d=S(),u=e.undo;
 // chat word filter used by the WebSocket server (match chat, DMs, club chat)
 function filterText(t){const L=(S().cfg.chat||{}).blocked||[];if(!L.length||!t)return t;let s=String(t);for(const w of L){if(!w)continue;const re=new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'gi');s=s.replace(re,m=>'*'.repeat(m.length))}return s}
 function flag(k){const f=S().cfg.flags;return !f||f[k]!==false}
-module.exports={flag,gate,igReport,handle,bind,banned,muted,maintenance,stat,audit,adminOf,filterText,publicConfig,hello,claim,pending,normGrant,redeem,otaManifest,verifyBundle,totp,totpOk,_S:S,_P:P,FLAGS,CAP,DEF_BADGES,normBadges};
+module.exports={limited:(req,k,max,ms)=>rl(ipOf(req),k,max,ms),authDev:auth,grantTo,flag,gate,igReport,handle,bind,banned,muted,maintenance,stat,audit,adminOf,filterText,publicConfig,hello,claim,pending,normGrant,redeem,otaManifest,verifyBundle,totp,totpOk,_S:S,_P:P,FLAGS,CAP,DEF_BADGES,normBadges};
