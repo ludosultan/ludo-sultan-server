@@ -4,7 +4,7 @@ const crypto=require('crypto'),https=require('https'),store=require('./store.js'
 const LANGS=['en','es','fr','de','zh','ar','ur','hi','bn','tr','pt','id'];
 const TL={en:'en',es:'es',fr:'fr',de:'de',zh:'zh-CN',ar:'ar',ur:'ur',hi:'hi',bn:'bn',tr:'tr',pt:'pt',id:'id'};
 const COMM=['all','muslim','hindu','sikh','christian','general'];
-const DEF_REWARDS={welcomeCoins:10000,welcomeGems:25,eventLevelGems:0,freeEventGems:50};
+const DEF_REWARDS={welcomeCoins:10000,welcomeGems:25,eventLevelGems:0,freeEventGems:600};
 function db(){let d=store.get('events');if(!d||!Array.isArray(d.events)){d={events:[],log:[],rewards:Object.assign({},DEF_REWARDS),joins:{}};store.set('events',d)}d.rewards=Object.assign({},DEF_REWARDS,d.rewards||{});d.joins=d.joins||{};d.log=d.log||[];return d}
 function save(){store.set('events',db(),500)}
 const clean=(s,n)=>String(s==null?'':s).replace(/[\u0000-\u001f]/g,' ').slice(0,n);

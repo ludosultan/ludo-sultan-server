@@ -20,22 +20,29 @@ const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.spli
  const f=path.normalize(path.join(ROOT,u));if(!f.startsWith(ROOT)||f.includes(path.sep+'server'+path.sep)||!fs.existsSync(f)||fs.statSync(f).isDirectory()){res.writeHead(404);res.end('not found');return}
  res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(res)});
 // ---- 3.5.8 "Make Your Own Emojis" (stub + pluggable generator; see server/emojigen.js) ----
-const GEN=require('./emojigen.js');const CE_DIR=path.join(__dirname,'data','custom-emoji');const ceJobs=new Map();
+const GEN=require('./emojigen.js');const ceJobs=new Map();
 function cors(res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS')}
+// 3.15.1: Make Your Own Emojis. Needs the device key (pid+key), consent and 1-5 photos. One job at a time per player, 3 per day.
+// Photos stay in memory only for the job; finished jobs are kept 30 min for the app to fetch, then dropped.
+const ceDay=new Map();
 function customEmoji(req,res,u){cors(res);const J=(c,o)=>{res.writeHead(c,{'Content-Type':'application/json'});res.end(JSON.stringify(o))};
  if(req.method==='OPTIONS'){res.writeHead(204);res.end();return}
- if(req.method==='GET'){const id=u.split('/')[2];const j=ceJobs.get(id);if(!j)return J(404,{error:'unknown job'});return J(200,{job:id,status:j.status,emojis:j.status==='done'?j.emojis:undefined,error:j.error})}
+ if(req.method==='GET'){if(u==='/custom-emoji/status')return J(200,{configured:GEN.configured()});const id=u.split('/')[2];const j=ceJobs.get(id);if(!j)return J(404,{error:'unknown job'});
+  const o={job:id,status:j.status,emojis:j.status==='done'?j.emojis:undefined};if(j.status==='done'){j.fetched=1}return J(200,o)}
  if(req.method!=='POST')return J(405,{error:'method'});
+ if(LO.limited(req,'cemoji',10,60e3))return J(429,{error:'slow down'});
  let body='',big=false;req.on('data',d=>{body+=d;if(body.length>12e6){big=true;req.destroy()}});
  req.on('end',()=>{if(big)return;let m;try{m=JSON.parse(body)}catch(e){return J(400,{error:'bad json'})}
   const photos=Array.isArray(m.photos)?m.photos.slice(0,5):[];if(!m.consent)return J(400,{error:'consent required'});if(!photos.length)return J(400,{error:'no photos'});
   if(!photos.every(x=>typeof x==='string'&&/^data:image\/(jpeg|png|webp);base64,/.test(x)&&x.length<3e6))return J(400,{error:'bad photo'});
-  const id=crypto.randomUUID();const pid=String(m.pid||'').slice(0,40);
-  if(!GEN.configured()){return J(200,{job:null,status:'unconfigured'})}
-  fs.mkdirSync(CE_DIR,{recursive:true});const job={id,pid,status:'processing',created:Date.now(),n:photos.length};ceJobs.set(id,job);
-  fs.writeFileSync(path.join(CE_DIR,id+'.json'),JSON.stringify({id,pid,created:job.created,n:photos.length}));
-  GEN.generate({photos:photos.map(x=>Buffer.from(x.split(',')[1],'base64')),styles:GEN.STYLES}).then(pngs=>{job.emojis=pngs.map(b=>'data:image/png;base64,'+b.toString('base64'));job.status='done'}).catch(e=>{job.status='failed';job.error=String(e.message||e)});
+  if(!GEN.configured())return J(200,{job:null,status:'unconfigured'});
+  const pid=String(m.pid||'').slice(0,64);if(!LO.authDev({pid,key:String(m.key||'')}))return J(403,{error:'auth'});
+  for(const j of ceJobs.values())if(j.pid===pid&&j.status==='processing')return J(202,{job:j.id,status:'processing'});
+  const day=new Date().toISOString().slice(0,10),dk=pid+'|'+day,dn=ceDay.get(dk)|0;if(dn>=3)return J(429,{error:'daily limit'});ceDay.set(dk,dn+1);
+  const id=crypto.randomUUID();const job={id,pid,status:'processing',created:Date.now(),n:photos.length};ceJobs.set(id,job);
+  GEN.generate(photos).then(out=>{job.emojis=out;job.status='done'}).catch(e=>{job.status='failed';console.error('[emoji] job failed',String(e.message||e).slice(0,160))});
   J(202,{job:id,status:'processing'})})}
+setInterval(()=>{const t=Date.now();for(const [k,j] of ceJobs)if(t-j.created>30*60e3)ceJobs.delete(k);const d=new Date().toISOString().slice(0,10);for(const k of ceDay.keys())if(!k.endsWith(d))ceDay.delete(k)},5*60e3).unref();
 const wss=new WebSocketServer({server});
 const rooms=new Map(),clients=new Map();// pid -> {ws,room,name,avatar}
 const SEATS={2:['red','yellow'],3:['red','green','yellow'],4:['red','green','yellow','blue']};
