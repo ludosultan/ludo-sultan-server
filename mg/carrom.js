@@ -54,20 +54,25 @@ cr.resolve=function(g){const p=g.turn,q=1-p,me=cr.side(p),ev=[];const pk=g.shotP
  if(opp.length&&!own.length)keep=false;
  // all own coins gone?
  const left=g.coins.filter(c=>!c.in&&c.t===me).length;
- if(left===0){const qc=g.coins.find(c=>c.t==='q');if(qc.in&&g.queen.by===p&&g.queen.covered){return cr.win(g,p,ev)}else if(!qc.in||g.queen.by!==p){// queen not owned: last coin returns
+ if(left===0){const qc=g.coins.find(c=>c.t==='q');if(qc.in&&g.queen.covered){return cr.win(g,p,ev)}else if(!qc.in||g.queen.by!==p){// queen not owned: last coin returns
    const last=own[own.length-1];if(last){cr.back(g,last);ev.push({t:'last-back'})}}}
  // opponent finished by your pocketing of their coins? check
- const oppLeft=g.coins.filter(c=>!c.in&&c.t===cr.side(q)).length;if(oppLeft===0){const qc=g.coins.find(c=>c.t==='q');if(qc.in&&g.queen.by===q&&g.queen.covered)return cr.win(g,q,ev)}
+ const oppLeft=g.coins.filter(c=>!c.in&&c.t===cr.side(q)).length;if(oppLeft===0){const qc=g.coins.find(c=>c.t==='q');if(qc.in&&g.queen.covered)return cr.win(g,q,ev)}
  g.pocketed[p]=g.coins.filter(c=>c.in&&c.t===me);g.pocketed[q]=g.coins.filter(c=>c.in&&c.t===cr.side(q));
  if(keep&&g.phase==='aim'){g.shotKept=true;return {again:true,events:ev}}
  return cr.endTurn(g,ev)};
+// shot limit: a board that cannot be finished (coins wedged, queen loops) ends after MAXSHOTS shots; most coins pocketed wins (+3 covered queen), tie -> the player who did not shoot last
+cr.MAXSHOTS=160;
+const _res=cr.resolve;cr.resolve=function(g){const r=_res(g);if(g.phase!=='over'&&(g.shots|0)>=cr.MAXSHOTS){const pts=[0,1].map(i=>g.coins.filter(c=>c.in&&c.t===cr.side(i)).length+(g.queen.by===i&&g.queen.covered?3:0));
+ const w=pts[0]>pts[1]?0:pts[1]>pts[0]?1:g.turn;g.winner=w;g.phase='over';g.score[w]=Math.max(1,pts[w]-pts[1-w]);r.events.push({t:'limit'},{t:'win',p:w});r.again=false;r.win=true}return r};
 cr.endTurn=function(g,ev){const p=g.turn;if(g.queen.pending&&g.queen.by===p){const qc=g.coins.find(c=>c.t==='q');if(qc.in){cr.back(g,qc);ev.push({t:'queen-lost'})}g.queen={by:-1,covered:false,pending:false}}
  g.turn=1-p;g.pocketed=[0,1].map(i=>g.coins.filter(c=>c.in&&c.t===cr.side(i)));return {again:false,events:ev}};
-cr.win=function(g,p,ev){g.winner=p;g.phase='over';const q=1-p;const left=g.coins.filter(c=>!c.in&&c.t===cr.side(q)).length;g.score[p]=left+3;ev.push({t:'win',p});return {again:false,events:ev,win:true}};
+cr.win=function(g,p,ev){g.winner=p;g.phase='over';const q=1-p;const left=g.coins.filter(c=>!c.in&&c.t===cr.side(q)).length;g.score[p]=left+(g.queen.by===p&&g.queen.covered?3:0);ev.push({t:'win',p});return {again:false,events:ev,win:true}};
 cr.ghost=function(c,pocket,rr){// striker centre position to send coin c into pocket
  const dx=pocket[0]-c.x,dy=pocket[1]-c.y,d=Math.hypot(dx,dy)||1;return [c.x-dx/d*(CR+rr),c.y-dy/d*(CR+rr)]};
 // AI: try geometric candidates, test by simulation, pick best
-cr.aiShot=function(g,skill){skill=skill==null?1:skill;const p=g.turn,me=cr.side(p),by=cr.baseY(p);const cands=[];const mine=g.coins.filter(c=>!c.in&&(c.t===me||(c.t==='q'&&!g.queen.pending))),needQ=g.queen.pending&&g.queen.by===p;
+cr.aiShot=function(g,skill){skill=skill==null?1:skill;const p=g.turn,me=cr.side(p),by=cr.baseY(p);const cands=[];const qOn=g.coins.some(c=>c.t==='q'&&!c.in),ownLeft=g.coins.filter(c=>!c.in&&c.t===me).length,lastOnly=qOn&&ownLeft===1&&!g.queen.pending;/* last coin would just come back: go for the queen first */
+ const mine=g.coins.filter(c=>!c.in&&((c.t===me&&!lastOnly)||(c.t==='q'&&!g.queen.pending))),needQ=g.queen.pending&&g.queen.by===p;
  const xs=[];for(let x=cr.minX+60;x<=cr.maxX-60;x+=(cr.maxX-cr.minX-120)/8)xs.push(x);
  for(const c of mine){if(needQ&&c.t==='q')continue;for(const pk of cr.pockets){const gp=cr.ghost(c,pk,SR);for(const sx of xs){const ang=Math.atan2(gp[1]-by,gp[0]-sx);if(Math.sin(ang)*(p===0?-1:1)<=0.05)continue;
    // striker must not hit another coin first: rough line check
@@ -75,8 +80,8 @@ cr.aiShot=function(g,skill){skill=skill==null?1:skill;const p=g.turn,me=cr.side(
  if(!cands.length){for(let i=0;i<8;i++){const sx=xs[i];cands.push({x:sx,ang:(p===0?-1:1)*(Math.PI/2)+(Math.random()-.5)*.8,pow:14+Math.random()*8})}}
  // random subset for speed
  const pick=[];const tot=Math.min(cands.length,48);for(let i=0;i<tot;i++)pick.push(cands.splice(Math.floor(Math.random()*cands.length),1)[0]);
- let best=null,bs=-1e9;for(const cd of pick){const h=cr.clone(g);if(!cr.placeStriker(h,cd.x))continue;const noise=(1-skill)*0.3;const ang=cd.ang+(Math.random()-.5)*noise;cr.shoot(h,ang,cd.pow);cr.simulate(h);
-  const pk=h.shotPocketed;const own=pk.filter(c=>c.t===me).length,opp=pk.filter(c=>c.t===cr.side(1-p)).length,qn=pk.some(c=>c.t==='q');let sc=own*10-opp*8+(qn?(own?14:3):0)-(h.strikerIn?25:0)+Math.random()*1.5;
+ let best=null,bs=-1e9;const t0=Date.now();for(const cd of pick){if(best&&Date.now()-t0>250)break;const h=cr.clone(g);if(!cr.placeStriker(h,cd.x))continue;const noise=(1-skill)*0.3;const ang=cd.ang+(Math.random()-.5)*noise;cr.shoot(h,ang,cd.pow);cr.simulate(h);
+  const pk=h.shotPocketed;const own=pk.filter(c=>c.t===me).length,opp=pk.filter(c=>c.t===cr.side(1-p)).length,qn=pk.some(c=>c.t==='q');let sc=(lastOnly&&!qn?-own*6:own*10)-opp*8+(qn?(own?14:3):0)-(h.strikerIn?25:0)+Math.random()*1.5;
   if(sc>bs){bs=sc;best={x:cd.x,ang,pow:cd.pow}}}
  return best||{x:W/2,ang:(p===0?-1:1)*Math.PI/2,pow:15}};
 cr.clone=function(g){return {game:'carrom',coins:g.coins.map(c=>Object.assign({},c)),striker:Object.assign({},g.striker),turn:g.turn,phase:g.phase,queen:Object.assign({},g.queen),pocketed:[[],[]],shotPocketed:[],strikerIn:false,winner:-1,score:[0,0]}};
