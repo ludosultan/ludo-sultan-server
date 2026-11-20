@@ -4,7 +4,7 @@ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'ev3u-'));const now0=Date.now(),D
 const real=JSON.parse(fs.readFileSync(path.join(__dirname,'ev3-schedule.json'),'utf8'));
 const fl=JSON.parse(JSON.stringify(real.events.find(e=>e.id==='sul261204')));
 const base=(id,comm,extra)=>Object.assign(JSON.parse(JSON.stringify(fl)),{id,community:comm,name:{en:'Test '+id},start:now0+1200,end:now0+D},extra||{});
-const evs=[base('tflag','all'),base('tfew','all'),base('tmus','muslim'),base('thin','hindu'),
+const evs=[base('tflag','all'),base('tmulti','all'),base('tfew','all'),base('tmus','muslim'),base('thin','hindu'),
  Object.assign(base('tlater','all'),{start:now0+10*D,end:now0+12*D}),Object.assign(base('tfar','all'),{start:now0+30*D,end:now0+32*D})];
 evs[0].v2.antiFarm.maxCountedMatchesPerDay=12;
 const SCH=path.join(dir,'sched.json');fs.writeFileSync(SCH,JSON.stringify({catalog:real.catalog,events:evs}));
@@ -13,7 +13,7 @@ const store=require('./store.js');let n=0;const ok=(c,m)=>{assert.ok(c,m);n++;co
 store.init({events:{file:path.join(dir,'e.json'),def:{events:[],log:[],rewards:{},joins:{}}},liveops:{file:path.join(dir,'lo.json'),def:{},split:true},loplayers:{file:path.join(dir,'lop.json'),def:{}},
  wallet:{file:path.join(dir,'w.json'),def:{},split:true},ev3:{file:path.join(dir,'ev3.json'),def:{},split:true}}).then(async()=>{
  const E=require('./events3.js'),EVS=require('./events.js'),LO=require('./liveops.js'),W=require('./wallet.js');
- E.boot();ok(EVS.db().events.filter(e=>e.v2).length===6,'schedule imported (6 test events)');
+ E.boot();ok(EVS.db().events.filter(e=>e.v2).length===7,'schedule imported (7 test events)');
  const again=E.importSchedule();ok(again.added===0,'re-import adds nothing, keeps admin edits');
  ok(EVS.publicConfig().events.every(e=>!e.v2&&!['tflag','tfew'].includes(e.id)),'legacy /api/events (3.14.x) does not get v3 events');
  // religion filter
@@ -28,15 +28,32 @@ store.init({events:{file:path.join(dir,'e.json'),def:{events:[],log:[],rewards:{
  ok(E.status(EVS.db().events.find(e=>e.id==='tflag'))==='registration','status registration before start');
  const tl=EVS.db().events.find(e=>e.id==='tlater');ok(E.regOpens(tl)===tl.start-7*D,'registration opens exactly 7 days before start');
  ok(E.join('tlater','p1',{}).error==='notOpen','join before registration opens is refused');
- for(let i=0;i<100;i++)E.join('tflag','p'+i,{name:'P'+i,comm:null});for(let i=0;i<99;i++)E.join('tfew','p'+i,{name:'P'+i});
- const j1=E.join('tflag','p1',{});ok(j1.ok&&j1.joined===100,'join is idempotent, 100 joined');
+ for(let i=0;i<100;i++)E.join('tflag','p'+i,{name:'P'+i,comm:null});for(let i=55;i<75;i++)E.join('tmulti','p'+i,{name:'P'+i});for(let i=0;i<19;i++)E.join('tfew','p'+i,{name:'P'+i});
+ const j1=E.join('tflag','p1',{});ok(j1.ok&&j1.joined===100,'join is idempotent, 100 joined (min is 20)');
  ok(E.list(null,'p5').find(e=>e.id==='tflag').me.joinedAt>0,'my join state in list');
  await new Promise(r=>setTimeout(r,1400));
  const ev=id=>EVS.db().events.find(e=>e.id===id);
- ok(E.status(ev('tflag'))==='live','100 joined -> starts on time');ok(E.status(ev('tfew'))==='notStarted','99 joined -> not started');
+ ok(E.status(ev('tflag'))==='live','100 joined (>= 20) -> starts on time');ok(E.status(ev('tfew'))==='notStarted','19 joined (< 20) -> not started');
  ok(E.join('tflag','late1',{}).error==='registrationClosed','no late join after start');
  // scoring
- const room=(pids,order,caps,extra)=>Object.assign({public:true,g:{},startedAt:Date.now(),seats:pids.map(p=>p?{pid:p,name:'N'+p}:{bot:true,fill:true,name:'Ali'}),caps:caps||pids.map(()=>0)},extra||{});
+ const room=(pids,order,caps,extra)=>Object.assign({public:true,ev:'tflag',g:{},startedAt:Date.now(),seats:pids.map(p=>p?{pid:p,name:'N'+p}:{bot:true,fill:true,name:'Ali'}),caps:caps||pids.map(()=>0)},extra||{});
+ // 3.15.4: event matches only. Normal matches (no room.ev) never count, one match credits ONLY its own event, eligibility check
+ ok(E.MIN_PLAYERS===20,'default minimum players is 20');
+ ok(EVS.db().events.filter(e=>e.v2&&e.v2.registration.minPlayers!==20).length===0,'every event has minPlayers 20');
+ ok(E.onMatchOver(room(['p1','p2'],[0,1],null,{ev:undefined}),[0,1])===0,'normal online match (no room.ev) gives 0 event points');
+ ok(!E.board(ev('tflag'),'p1').me.games,'normal match did not add to the joined live event');
+ ok(E.eligible('tflag','p1').ok&&E.eligible('tflag','p1').name.en==='Test tflag','eligible: live and joined');
+ ok(E.eligible('tflag','nobody').error==='notJoined','ineligible: not joined');ok(E.eligible('nope','p1').error==='unknown','ineligible: unknown event');
+ ok(E.eligible('tfew','p1').error==='notStarted','ineligible: event not started');ok(E.eligible('tlater','p1').error==='notLive','ineligible: not live yet');
+ // multi-event: p60 joined tflag AND tfew2 (live, 20 joined); a match tagged tflag credits tflag only
+ ok(E.onMatchOver(room(['p60','p61'],[0,1],null,{ev:'tflag'}),[0,1])===2,'match tagged with event A scores event A');
+ ok(E.board(ev('tflag'),'p60').me.games===1&&!E.board(ev('tmulti'),'p60').me.games,'...and event B (also joined, also live) gets nothing');
+ {const r=room(['p62','p63'],[0,1],null,{ev:'tflag'});E.onMatchOver(r,[0,1]);ok(r.evPts&&r.evPts[0]===40&&r.evPts[1]===0+10,'evPts per seat: win 40, loss 10 ('+JSON.stringify(r.evPts)+')')}
+ ok(E.onMatchOver(room(['p60','p61'],[0,1],null,{ev:'tmulti'}),[0,1])===2&&E.board(ev('tmulti'),'p60').me.games===1&&E.board(ev('tflag'),'p60').me.games===1,'match tagged with event B scores B only');
+ ok(E.onMatchOver(room(['p60','p61'],[0,1],null,{ev:'tfew'}),[0,1])===0,'match tagged with a not-started event gives 0');
+ ok(E.onMatchOver(room(['p60',null],[0,1],null,{ev:'tflag'}),[0,1])===0,'practice (bot fill) event match gives 0');
+ // migration: old events imported with minPlayers 100 are lowered once
+ {const o=ev('tlater');o.v2.registration.minPlayers=100;E._S().meta.min20=0;ok(E.migrateMin()>=1&&o.v2.registration.minPlayers===20,'migration lowers old minPlayers 100 to 20')}
  ok(E.onMatchOver(room(['p1',null],[0,1]),[0,1])===0,'bot-only (fill) match ignored');
  ok(E.onMatchOver(room(['p1','p2'],[0,1],null,{public:false}),[0,1])===0,'private / friend table ignored');
  ok(E.onMatchOver(room(['p1','p2'],[0,1],null,{mg:'chess'}),[0,1])===0,'mini-game ignored');
@@ -79,6 +96,6 @@ store.init({events:{file:path.join(dir,'e.json'),def:{events:[],log:[],rewards:{
  // normEvent: v2 kept, gem clamp > 100000 for ranks, coins by rank, audience, 12 rewards
  const ne=EVS.normEvent({name:{en:'X'},rewards:Array(15).fill({type:'coins',n:5}),v2:{ranks:[{from:1,to:1,gems:5e6,coins:3e7,items:['r29','bad']}]},audience:'everyone'});
  ok(ne.rewards.length===12&&ne.rewards[0].type==='coins','normEvent: 12 rewards with coins');ok(ne.v2.ranks[0].gems===2e6&&ne.v2.ranks[0].coins===3e7&&ne.v2.ranks[0].items.length===1,'normEvent v2: gems clamp 2,000,000, coins by rank, only valid items');
- ok(ne.audience==='everyone'&&ne.v2.registration.minPlayers===100&&ne.v2.registration.days===7&&ne.v2.fee===0,'normEvent: audience + registration rule + fee 0');
+ ok(ne.audience==='everyone'&&ne.v2.registration.minPlayers===20&&ne.v2.registration.days===7&&ne.v2.fee===0,'normEvent: audience + registration rule + fee 0');
  const legacy=EVS.normEvent({name:{en:'L'},rewards:[{type:'gems',n:9e9}]});ok(legacy.rewards[0].n===1e5&&!legacy.v2,'legacy event unchanged (gems clamp 100,000)');
  console.log('test-ev3-unit: ALL PASSED ('+n+' checks)');setTimeout(()=>process.exit(0),300)}).catch(e=>{console.error('FAIL',e);process.exit(1)});

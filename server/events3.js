@@ -1,15 +1,15 @@
-// 3.15 events v3: server-scored events with a 7-day registration and a 100-player start rule.
+// 3.15 events v3: server-scored events with a 7-day registration and a 20-player start rule.
 // - Schedule: ev3-schedule.json (66 events, UTC). Imported into the events store at boot (new ids only, never overwrites admin edits).
-// - Registration opens 7 days before start. Players join for free (fee 0). At the start time the event starts only if 100+ players joined,
-//   otherwise it is "Not started: fewer than 100 players" and gives no prizes.
-// - Points come only from finished ONLINE public matches the server saw (never from the app): played / win / 2nd / captures (capped),
+// - Registration opens 7 days before start. Players join for free (fee 0). At the start time the event starts only if 20+ players joined,
+//   otherwise it is "Not started: fewer than 20 players" and gives no prizes.
+// - Points come only from finished ONLINE public matches started with PLAY EVENT MATCH (room.ev = event id, 3.15.4 event queue); a normal match never counts and one match credits ONLY its own event (never from the app): played / win / 2nd / captures (capped),
 //   only for matches that started after the player joined, with a daily cap, max 3 counted matches per day against the same opponent,
 //   no points for bot-only matches or players who left early. Friend / private / coin tables and mini-games never count.
 // - Milestones and ranks are paid through the LiveOps mailbox (server grants). Ranking needs at least 10 counted matches.
 // - The flagship rank 1 (Sultan of Sultans) waits in an admin review queue; approval pays it and starts the 7-day showcase (/api/sultan).
 // - Religion filter: a player without a community sees only community 'all'. Muslim events only for community 'muslim'.
 const fs=require('fs'),path=require('path'),crypto=require('crypto');const store=require('./store.js');const EVS=require('./events.js');
-const DAY=864e5,REG_DAYS=7,MIN_PLAYERS=+process.env.EV3_MIN_PLAYERS||100,MIN_RANKED=10;
+const DAY=864e5,REG_DAYS=7,MIN_PLAYERS=+process.env.EV3_MIN_PLAYERS||20,MIN_RANKED=10;
 const SCHED=process.env.EV3_SCHEDULE||path.join(__dirname,'ev3-schedule.json');
 const COMMS=['muslim','hindu','sikh','christian','general'];
 let CAT={};// item catalog r01..r86 {name,type,audience}
@@ -45,7 +45,7 @@ function pubEvent(e,pid,now){const st=status(e,now),r=reg(e),me=rowOf(e,pid),j=p
  return {id:e.id,name:e.name,desc:e.desc,community:e.community,audience:e.audience,icon:e.icon,start:e.start,end:e.end,regOpens:regOpens(e),fee:0,free:true,status:st,
   joined:joined(e),minPlayers:r.min,lateJoin:r.late,v2:{kind:e.v2.kind,icon:e.v2.icon,target:e.v2.target,minGames:Math.max(MIN_RANKED,e.v2.minGames|0),points:e.v2.points,pointsMode:e.v2.pointsMode,
    dailyCap:e.v2.antiFarm.maxCountedMatchesPerDay,popup:e.v2.popup,milestones:e.v2.milestones,ranks:e.v2.ranks,flagship:e.v2.flagship||null,days:e.v2.days},
-  me:j?{joinedAt:j.t,pts:me?me.pts|0:0,games:me?me.games|0:0,wins:me?me.wins|0:0,best:me?me.best|0:0,ms:me?me.ms||[]:[],rank:me?rankOf(e,pid):0,prize:me&&me.prize||null}:null}}
+  me:j?{joinedAt:j.t,today:me&&me.d&&me.d.k===dayKey(now)?me.d.n|0:0,pts:me?me.pts|0:0,games:me?me.games|0:0,wins:me?me.wins|0:0,best:me?me.best|0:0,ms:me?me.ms||[]:[],rank:me?rankOf(e,pid):0,prize:me&&me.prize||null}:null}}
 function list(comm,pid){const now=Date.now();return v3().filter(e=>visible(e,comm)&&e.end>now-3*DAY&&regOpens(e)<=now+14*DAY).sort((a,b)=>a.start-b.start).map(e=>pubEvent(e,pid,now))}
 function ranked(e){const rows=sc(e.id),min=Math.max(MIN_RANKED,e.v2.minGames|0);return Object.entries(rows).filter(([p,r])=>(r.games|0)>=min&&(r.pts|0)>0).sort((a,b)=>(b[1].pts|0)-(a[1].pts|0)||(a[1].t||0)-(b[1].t||0))}
 function rankOf(e,pid){const i=ranked(e).findIndex(([p])=>p===pid);return i+1}
@@ -61,10 +61,18 @@ function join(id,pid,info){const e=byId(id);if(!e)return {ok:false,error:'unknow
 function grant(pid,e,rw,why,kind){const LO=require('./liveops.js');const t={en:(e.name.en||'Event')+': '+why};
  if(rw.type==='coins'&&rw.n>0)return LO.grantTo(pid,{coins:rw.n,title:t,kind:'event',ref:e.id});if(rw.type==='gems'&&rw.n>0)return LO.grantTo(pid,{gems:rw.n,title:t,kind:'event',ref:e.id});
  if(rw.type==='item'&&rw.id)return LO.grantTo(pid,{item:{type:'ev3',id:rw.id,n:rw.n||1},title:t,kind:kind||'event',ref:e.id})}
-function onMatchOver(r,order){try{if(!r||r.mg||!r.public||r.tour||!r.g||!Array.isArray(order))return 0;
+// eligibility of a player to start an event match (checked by app.js 'quick' with m.ev): live, joined before now, daily cap not reached
+function eligible(id,pid,now){now=now||Date.now();const e=byId(String(id||''));if(!e)return {ok:false,error:'unknown'};
+ const st=status(e,now);if(st!=='live')return {ok:false,error:st==='ended'?'ended':st==='notStarted'?'notStarted':'notLive'};
+ const j=pid?jn(e.id)[pid]:null;if(!j)return {ok:false,error:'notJoined'};
+ const row=sc(e.id)[pid],k=dayKey(now);if(row&&row.d&&row.d.k===k&&row.d.n>=e.v2.antiFarm.maxCountedMatchesPerDay)return {ok:false,error:'cap'};
+ return {ok:true,id:e.id,name:e.name}}
+// called when an online match ends. Credits ONLY the event the room was started for (r.ev); r.evPts = points per seat for the 'over' message.
+function onMatchOver(r,order){try{if(!r||r.mg||!r.public||r.tour||!r.g||!Array.isArray(order)||!r.ev)return 0;
  const humans=r.seats.map((s,i)=>({s,i})).filter(x=>x.s.pid&&!x.s.bot);if(humans.length<2)return 0;// bot-only for everyone: ignored
- const now=Date.now(),t0=r.startedAt||now,k=dayKey(now);let counted=0;const live=v3().filter(e=>status(e,now)==='live'&&e.start<=t0);if(!live.length)return 0;
- for(const e of live){const J=jn(e.id),rows=sc(e.id),v=e.v2,af=v.antiFarm,P=v.points;
+ const now=Date.now(),t0=r.startedAt||now,k=dayKey(now);let counted=0;const e=byId(r.ev);if(!e||status(e,now)!=='live'||e.start>t0)return 0;
+ r.evPts=r.seats.map(()=>0);
+ {const J=jn(e.id),rows=sc(e.id),v=e.v2,af=v.antiFarm,P=v.points;
   for(const {s,i} of humans){const j=J[s.pid];if(!j||j.t>t0)continue;// only matches started after joining
    const row=rows[s.pid]=rows[s.pid]||{pts:0,games:0,wins:0,cur:0,best:0,ms:[],t:0,d:{k,n:0,o:{}}};if(!row.d||row.d.k!==k)row.d={k,n:0,o:{}};
    if(row.d.n>=af.maxCountedMatchesPerDay)continue;
@@ -72,8 +80,8 @@ function onMatchOver(r,order){try{if(!r||r.mg||!r.public||r.tour||!r.g||!Array.i
    opp.forEach(o=>row.d.o[o]=(row.d.o[o]|0)+1);row.d.n++;
    const place=order.indexOf(i),win=place===0,second=place===1&&r.seats.length>2,caps=Math.min(P.captureCapPerMatch,(r.caps&&r.caps[i])|0);
    row.games++;if(win)row.wins++;row.cur=win?(row.cur|0)+1:0;row.best=Math.max(row.best|0,row.cur);
-   const add=P.played+(win?P.win:0)+(second?P.second:0)+caps*P.capture;
-   row.pts=v.pointsMode==='consecutiveWins'?row.best:(row.pts|0)+add;row.t=now;if(s.name)j.name=clean(s.name,16);if(s.avatar)j.av=clean(s.avatar,30);counted++;
+   const add=P.played+(win?P.win:0)+(second?P.second:0)+caps*P.capture;const before=row.pts|0;
+   row.pts=v.pointsMode==='consecutiveWins'?row.best:(row.pts|0)+add;row.t=now;r.evPts[i]=Math.max(0,(row.pts|0)-before);if(s.name)j.name=clean(s.name,16);if(s.avatar)j.av=clean(s.avatar,30);counted++;
    // milestones
    v.milestones.forEach((m,mi)=>{if((row.ms||[]).includes(mi))return;const need=v.pointsMode==='consecutiveWins'?(m.wins!=null?m.wins:m.pts):m.pts;
     if(row.pts>=need){row.ms=row.ms||[];row.ms.push(mi);grant(s.pid,e,m.reward,m.level?('level '+m.level):('reached '+need+(v.pointsMode==='consecutiveWins'?' wins in a row':' points')))}})}}
@@ -123,6 +131,11 @@ function handleWs(m,pid,send,ws){if(m.t==='evscore'&&byId(String(m.ev||'')))retu
  if(m.t==='evlb'){const e=byId(String(m.ev||''));if(!e)return false;const b=board(e,pid,50);send(ws,{t:'evlb',ev:e.id,list:b.top.map(x=>({name:x.name,avatar:x.av,cc:x.cc,pts:x.pts,wins:x.wins,games:x.games})),rank:b.me?b.me.rank:0,total:b.total,v3:true});return true}
  return false}
 let timer=null;
-function boot(){if(process.env.EV3_AUTOIMPORT!=='0'){const r=importSchedule();if(r.ok&&r.added)console.log('[ev3] imported',r.added,'events')}else loadCatalog();
+// one-time: events imported earlier carry minPlayers 100; lower every not-yet-decided event to the current minimum (admin can still edit afterwards)
+function migrateMin(){try{const m=S().meta;if(m.min20===MIN_PLAYERS)return 0;let n=0;
+ for(const e of v3()){if(m.decided[e.id])continue;const r=e.v2.registration=e.v2.registration||{};if(r.minPlayers!==MIN_PLAYERS){r.minPlayers=MIN_PLAYERS;n++}
+  if(typeof r.rule==='string')r.rule=r.rule.replace(/\b100\b/g,String(MIN_PLAYERS))}
+ m.min20=MIN_PLAYERS;if(n)EVS.save();save();if(n)console.log('[ev3] minPlayers set to',MIN_PLAYERS,'on',n,'events');return n}catch(err){console.error('[ev3] migrateMin',err.message);return 0}}
+function boot(){if(process.env.EV3_AUTOIMPORT!=='0'){const r=importSchedule();if(r.ok&&r.added)console.log('[ev3] imported',r.added,'events')}else loadCatalog();migrateMin();
  if(!timer){timer=setInterval(()=>{try{const now=Date.now();v3().forEach(e=>status(e,now));finalize(now)}catch(e){console.error('[ev3] tick',e.message)}},+process.env.EV3_TICK_MS||60e3);timer.unref()}}
-module.exports={boot,handle,handleWs,onMatchOver,finalize,join,list,board,status,visible,importSchedule,review,showcase,regOpens,MIN_PLAYERS,MIN_RANKED,_S:S,_cat:()=>CAT};
+module.exports={boot,migrateMin,eligible,handle,handleWs,onMatchOver,finalize,join,list,board,status,visible,importSchedule,review,showcase,regOpens,MIN_PLAYERS,MIN_RANKED,_S:S,_cat:()=>CAT};

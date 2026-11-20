@@ -3,7 +3,7 @@
  "tz": "UTC",
  "generated": "2026-11-19",
  "visibility": "Events with community muslim and all items with audience muslim are shown only to players who picked Muslim. Everyone else sees community all events only.",
- "note": "Events v3 schedule. Each event: registration 7 days before start, starts only with 100+ joined players, else not started and no prizes. Times are UTC epoch ms.",
+ "note": "Events v3 schedule. Each event: registration 7 days before start, starts only with 20+ joined players, else not started and no prizes. Times are UTC epoch ms.",
  "catalog": [
   {
    "id": "r01",
@@ -753,9 +753,9 @@
      "opens": 1795046400000,
      "closes": 1795651200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -933,9 +933,9 @@
      "opens": 1795046400000,
      "closes": 1795651200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -1272,9 +1272,9 @@
      "opens": 1795046400000,
      "closes": 1795651200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -1440,9 +1440,9 @@
      "opens": 1795046400000,
      "closes": 1795651200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -1596,9 +1596,9 @@
      "opens": 1795046400000,
      "closes": 1795651200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -1719,9 +1719,9 @@
      "opens": 1795132800000,
      "closes": 1795737600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -1861,9 +1861,9 @@
      "opens": 1795219200000,
      "closes": 1795824000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2029,9 +2029,9 @@
      "opens": 1795392000000,
      "closes": 1795996800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2209,9 +2209,9 @@
      "opens": 1795478400000,
      "closes": 1796083200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2332,9 +2332,9 @@
      "opens": 1795737600000,
      "closes": 1796342400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2541,9 +2541,9 @@
      "opens": 1795737600000,
      "closes": 1796342400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2717,9 +2717,9 @@
      "opens": 1795996800000,
      "closes": 1796601600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2859,9 +2859,9 @@
      "opens": 1796169600000,
      "closes": 1796774400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -2982,9 +2982,9 @@
      "opens": 1796342400000,
      "closes": 1796947200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -3124,9 +3124,9 @@
      "opens": 1796428800000,
      "closes": 1797033600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -3292,9 +3292,9 @@
      "opens": 1796601600000,
      "closes": 1797206400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -3448,9 +3448,9 @@
      "opens": 1796860800000,
      "closes": 1797465600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -3579,9 +3579,9 @@
      "opens": 1796947200000,
      "closes": 1797552000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -3702,9 +3702,9 @@
      "opens": 1796947200000,
      "closes": 1797552000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -3871,9 +3871,9 @@
      "opens": 1797120000000,
      "closes": 1797724800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4039,9 +4039,9 @@
      "opens": 1797206400000,
      "closes": 1797811200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4170,9 +4170,9 @@
      "opens": 1797206400000,
      "closes": 1797811200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4312,9 +4312,9 @@
      "opens": 1797465600000,
      "closes": 1798070400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4435,9 +4435,9 @@
      "opens": 1797552000000,
      "closes": 1798156800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4595,9 +4595,9 @@
      "opens": 1797811200000,
      "closes": 1798416000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4745,9 +4745,9 @@
      "opens": 1797984000000,
      "closes": 1798588800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -4868,9 +4868,9 @@
      "opens": 1798156800000,
      "closes": 1798761600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -5048,9 +5048,9 @@
      "opens": 1798156800000,
      "closes": 1798761600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -5387,9 +5387,9 @@
      "opens": 1798156800000,
      "closes": 1798761600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -5529,9 +5529,9 @@
      "opens": 1798243200000,
      "closes": 1798848000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -5698,9 +5698,9 @@
      "opens": 1798416000000,
      "closes": 1799020800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -5858,9 +5858,9 @@
      "opens": 1798416000000,
      "closes": 1799020800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6022,9 +6022,9 @@
      "opens": 1798675200000,
      "closes": 1799280000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6145,9 +6145,9 @@
      "opens": 1798761600000,
      "closes": 1799366400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6295,9 +6295,9 @@
      "opens": 1798848000000,
      "closes": 1799452800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6455,9 +6455,9 @@
      "opens": 1799020800000,
      "closes": 1799625600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6586,9 +6586,9 @@
      "opens": 1799193600000,
      "closes": 1799798400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6717,9 +6717,9 @@
      "opens": 1799280000000,
      "closes": 1799884800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -6840,9 +6840,9 @@
      "opens": 1799366400000,
      "closes": 1799971200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7049,9 +7049,9 @@
      "opens": 1799366400000,
      "closes": 1799971200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7209,9 +7209,9 @@
      "opens": 1799625600000,
      "closes": 1800230400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7351,9 +7351,9 @@
      "opens": 1799798400000,
      "closes": 1800403200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7474,9 +7474,9 @@
      "opens": 1799971200000,
      "closes": 1800576000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7616,9 +7616,9 @@
      "opens": 1800057600000,
      "closes": 1800662400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7776,9 +7776,9 @@
      "opens": 1800230400000,
      "closes": 1800835200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -7907,9 +7907,9 @@
      "opens": 1800316800000,
      "closes": 1800921600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8063,9 +8063,9 @@
      "opens": 1800489600000,
      "closes": 1801094400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8186,9 +8186,9 @@
      "opens": 1800576000000,
      "closes": 1801180800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8355,9 +8355,9 @@
      "opens": 1800835200000,
      "closes": 1801440000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8511,9 +8511,9 @@
      "opens": 1800835200000,
      "closes": 1801440000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8671,9 +8671,9 @@
      "opens": 1800835200000,
      "closes": 1801440000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8794,9 +8794,9 @@
      "opens": 1801180800000,
      "closes": 1801785600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -8936,9 +8936,9 @@
      "opens": 1801180800000,
      "closes": 1801785600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -9078,9 +9078,9 @@
      "opens": 1801267200000,
      "closes": 1801872000000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -9220,9 +9220,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -9400,9 +9400,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -9572,9 +9572,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -9728,9 +9728,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -10067,9 +10067,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -10406,9 +10406,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -10566,9 +10566,9 @@
      "opens": 1801440000000,
      "closes": 1802044800000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -10697,9 +10697,9 @@
      "opens": 1801785600000,
      "closes": 1802390400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -10898,9 +10898,9 @@
      "opens": 1801785600000,
      "closes": 1802390400000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -11054,9 +11054,9 @@
      "opens": 1802044800000,
      "closes": 1802649600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -11214,9 +11214,9 @@
      "opens": 1802044800000,
      "closes": 1802649600000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   },
@@ -11337,16 +11337,16 @@
      "opens": 1802390400000,
      "closes": 1802995200000,
      "days": 7,
-     "minPlayers": 100,
+     "minPlayers": 20,
      "lateJoin": false,
-     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 100 players joined. Under 100: it does not start and no prizes are given."
+     "rule": "Registration opens 7 days before the start. The event starts on time only if at least 20 players joined. Under 20: it does not start and no prizes are given."
     }
    }
   }
  ],
  "registration": {
   "days": 7,
-  "minPlayers": 100,
+  "minPlayers": 20,
   "lateJoin": false
  },
  "coverage": {

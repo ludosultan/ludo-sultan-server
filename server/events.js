@@ -39,7 +39,7 @@ function normV2(v){v=v||{};const p=v.points||{};const af=v.antiFarm||{};const re
   milestones:(Array.isArray(v.milestones)?v.milestones:[]).slice(0,40).map(m=>({pts:int(m&&m.pts,0,1e7,0),wins:m&&m.wins!=null?int(m.wins,0,1000,0):undefined,level:m&&m.level!=null?int(m.level,0,1000,0):undefined,extra:!!(m&&m.extra),reward:normReward(m&&m.reward)})),
   ranks:(Array.isArray(v.ranks)?v.ranks:[]).slice(0,12).map(r=>({from:int(r&&r.from,1,1e5,1),to:int(r&&r.to,1,1e5,1),gems:int(r&&r.gems,0,2e6,0),coins:int(r&&r.coins,0,1e8,0),items:(Array.isArray(r&&r.items)?r.items:[]).map(itemId).filter(Boolean).slice(0,10),showcase:!!(r&&r.showcase),showcaseDays:int(r&&r.showcaseDays,0,30,7)})),
   days:int(v.days,1,400,7),audience:clean(v.audience||'everyone',40),
-  registration:{days:int(reg.days,0,30,7),minPlayers:int(reg.minPlayers,0,1e6,100),lateJoin:!!reg.lateJoin}};
+  registration:{days:int(reg.days,0,30,7),minPlayers:int(reg.minPlayers,0,1e6,20),lateJoin:!!reg.lateJoin}};
  if(v.flagship){const f=v.flagship;o.flagship={title:clean(f.title||'Sultan of Ludo Sultan',60),winnerTitle:clean(f.winnerTitle||'Sultan of Sultans',60),winners:1,
   showcaseDays:int(f.showcase&&f.showcase.durationDays,1,30,7),fameNotice:noDash(clean(f.fameNotice||'',300)),leaderboardTop:int(f.leaderboardTop,10,1000,100),
   rank1Prize:{gems:int(f.rank1Prize&&f.rank1Prize.gems,0,2e6,0),coins:int(f.rank1Prize&&f.rank1Prize.coins,0,1e8,0)}}}
