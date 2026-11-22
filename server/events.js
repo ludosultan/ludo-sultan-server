@@ -11,8 +11,8 @@ const clean=(s,n)=>String(s==null?'':s).replace(/[\u0000-\u001f]/g,' ').slice(0,
 const noDash=s=>String(s||'').replace(/[\u2013\u2014]/g,'-');
 function normEvent(x,old){const e=Object.assign({},old||{});
  e.id=old?old.id:(/^[a-z0-9]{2,12}$/.test(x.id||'')?x.id:('e'+crypto.randomBytes(4).toString('hex')).slice(0,10));
- const tx=(o)=>{const r={};LANGS.forEach(l=>{const v=o&&o[l];if(v)r[l]=noDash(clean(v,l==='en'?80:300))});return r};
- e.name=tx(x.name);e.desc=tx(x.desc);e.edited=x.edited&&typeof x.edited==='object'?x.edited:{};
+ const tx=(o,en)=>{const r={};LANGS.forEach(l=>{const v=o&&o[l];if(v)r[l]=noDash(clean(v,l==='en'?en:300))});return r};
+ e.name=tx(x.name,80);e.desc=tx(x.desc,300);e.edited=x.edited&&typeof x.edited==='object'?x.edited:{};
  e.community=COMM.includes(x.community)?x.community:'all';e.icon=clean(x.icon||'ramadan',16);
  e.start=+x.start||Date.now();e.end=+x.end||(e.start+7*864e5);if(e.end<=e.start)e.end=e.start+864e5;
  e.fee=Math.max(0,Math.min(1e5,x.fee|0));e.seed=Math.max(0,Math.min(1e7,x.seed|0));

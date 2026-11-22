@@ -136,6 +136,10 @@ function migrateMin(){try{const m=S().meta;if(m.min20===MIN_PLAYERS)return 0;let
  for(const e of v3()){if(m.decided[e.id])continue;const r=e.v2.registration=e.v2.registration||{};if(r.minPlayers!==MIN_PLAYERS){r.minPlayers=MIN_PLAYERS;n++}
   if(typeof r.rule==='string')r.rule=r.rule.replace(/\b100\b/g,String(MIN_PLAYERS))}
  m.min20=MIN_PLAYERS;if(n)EVS.save();save();if(n)console.log('[ev3] minPlayers set to',MIN_PLAYERS,'on',n,'events');return n}catch(err){console.error('[ev3] migrateMin',err.message);return 0}}
-function boot(){if(process.env.EV3_AUTOIMPORT!=='0'){const r=importSchedule();if(r.ok&&r.added)console.log('[ev3] imported',r.added,'events')}else loadCatalog();migrateMin();
+// one-time (3.15.5): descriptions imported before the fix were cut at 80 chars (e.g. "...Top 20 win diamon"). Restore the full schedule text when the stored text is a cut prefix of it.
+function repairDesc(){try{const m=S().meta;if(m.descFix)return 0;let n=0;const j=JSON.parse(fs.readFileSync(SCHED,'utf8'));const full={};(j.events||[]).forEach(x=>{if(x&&x.id&&x.desc&&x.desc.en)full[x.id]=String(x.desc.en)});
+ for(const e of v3()){const f=full[e.id],cur=e.desc&&e.desc.en;if(f&&cur&&cur!==f&&cur.length<f.length&&f.startsWith(cur)){e.desc.en=f.slice(0,300);n++}}
+ m.descFix=1;if(n)EVS.save();save();if(n)console.log('[ev3] repaired',n,'cut descriptions');return n}catch(err){console.error('[ev3] repairDesc',err.message);return 0}}
+function boot(){if(process.env.EV3_AUTOIMPORT!=='0'){const r=importSchedule();if(r.ok&&r.added)console.log('[ev3] imported',r.added,'events')}else loadCatalog();migrateMin();repairDesc();
  if(!timer){timer=setInterval(()=>{try{const now=Date.now();v3().forEach(e=>status(e,now));finalize(now)}catch(e){console.error('[ev3] tick',e.message)}},+process.env.EV3_TICK_MS||60e3);timer.unref()}}
-module.exports={boot,migrateMin,eligible,handle,handleWs,onMatchOver,finalize,join,list,board,status,visible,importSchedule,review,showcase,regOpens,MIN_PLAYERS,MIN_RANKED,_S:S,_cat:()=>CAT};
+module.exports={boot,migrateMin,repairDesc,eligible,handle,handleWs,onMatchOver,finalize,join,list,board,status,visible,importSchedule,review,showcase,regOpens,MIN_PLAYERS,MIN_RANKED,_S:S,_cat:()=>CAT};
