@@ -37,7 +37,7 @@ function importSchedule(file,opts){opts=opts||{};let j;try{j=JSON.parse(fs.readF
  const d=EVS.db(),m=S().meta;let added=0,updated=0;
  for(const x of (j.events||[])){if(!x||!x.v2)continue;const old=d.events.find(e=>e.id===x.id);
   if(old&&!opts.replace)continue;const e=EVS.normEvent(Object.assign({},x,{id:x.id}),old||null);if(!old){e.id=/^[a-z0-9]{2,12}$/.test(x.id)?x.id:e.id;d.events.push(e);added++}else{Object.assign(old,e);updated++}m.imported[e.id]=Date.now()}
- EVS.save();save();return {ok:true,added,updated,total:v3().length}}
+ EVS.save();save();try{if(typeof fixDesc==='function')fixDesc()}catch(e){}return {ok:true,added,updated,total:v3().length}}
 function loadCatalog(){if(Object.keys(CAT).length)return;try{const j=JSON.parse(fs.readFileSync(SCHED,'utf8'));(j.catalog||[]).forEach(c=>{if(c&&/^r\d{2}$/.test(c.id))CAT[c.id]={name:clean(c.name,40),type:clean(c.type,30),audience:c.audience==='muslim'?'muslim':'all',rarity:clean(c.rarity||'',12)}})}catch(e){}}
 // ---- public view ----
 function rowOf(e,pid){return pid?sc(e.id)[pid]||null:null}
@@ -136,10 +136,20 @@ function migrateMin(){try{const m=S().meta;if(m.min20===MIN_PLAYERS)return 0;let
  for(const e of v3()){if(m.decided[e.id])continue;const r=e.v2.registration=e.v2.registration||{};if(r.minPlayers!==MIN_PLAYERS){r.minPlayers=MIN_PLAYERS;n++}
   if(typeof r.rule==='string')r.rule=r.rule.replace(/\b100\b/g,String(MIN_PLAYERS))}
  m.min20=MIN_PLAYERS;if(n)EVS.save();save();if(n)console.log('[ev3] minPlayers set to',MIN_PLAYERS,'on',n,'events');return n}catch(err){console.error('[ev3] migrateMin',err.message);return 0}}
-// one-time (3.15.5): descriptions imported before the fix were cut at 80 chars (e.g. "...Top 20 win diamon"). Restore the full schedule text when the stored text is a cut prefix of it.
-function repairDesc(){try{const m=S().meta;if(m.descFix)return 0;let n=0;const j=JSON.parse(fs.readFileSync(SCHED,'utf8'));const full={};(j.events||[]).forEach(x=>{if(x&&x.id&&x.desc&&x.desc.en)full[x.id]=String(x.desc.en)});
- for(const e of v3()){const f=full[e.id],cur=e.desc&&e.desc.en;if(f&&cur&&cur!==f&&cur.length<f.length&&f.startsWith(cur)){e.desc.en=f.slice(0,300);n++}}
- m.descFix=1;if(n)EVS.save();save();if(n)console.log('[ev3] repaired',n,'cut descriptions');return n}catch(err){console.error('[ev3] repairDesc',err.message);return 0}}
-function boot(){if(process.env.EV3_AUTOIMPORT!=='0'){const r=importSchedule();if(r.ok&&r.added)console.log('[ev3] imported',r.added,'events')}else loadCatalog();migrateMin();repairDesc();
+// 3.15.5: event descriptions. (1) Texts imported before the fix were cut at 80 chars (e.g. "...Top 20 win diamon"): restore the full schedule text.
+// (2) No "free" wording: "Free to join." becomes "Open to all players." in every language. (3) Fill missing languages from ev3-desc-i18n.json.
+// Idempotent, runs at every boot (cheap: about 70 events).
+const LANGS3=['en','es','fr','de','zh','ar','ur','hi','bn','tr','pt','id'];let DI18N=null;function di18n(){if(DI18N)return DI18N;try{DI18N=JSON.parse(fs.readFileSync(path.join(__dirname,'ev3-desc-i18n.json'),'utf8'))}catch(e){DI18N={open:{},free:{},desc:{}}}return DI18N}
+function fixDesc(){try{const I=di18n();let n=0;const full={};try{const j=JSON.parse(fs.readFileSync(SCHED,'utf8'));(j.events||[]).forEach(x=>{if(x&&x.id&&x.desc&&x.desc.en)full[x.id]=String(x.desc.en)})}catch(e){}
+ const OLD=(I.free&&I.free.en)||'Free to join.',NEW=(I.open&&I.open.en)||'Open to all players.';
+ for(const e of EVS.db().events){if(!e||!e.desc||typeof e.desc!=='object')continue;const before=JSON.stringify(e.desc);
+  const f=full[e.id],cur=String(e.desc.en||'');
+  if(f&&cur&&cur!==f){const oldF=f.split(NEW).join(OLD);if(cur===oldF||(cur.length<f.length&&f.startsWith(cur))||(cur.length<oldF.length&&oldF.startsWith(cur)))e.desc.en=f.slice(0,300)}
+  for(const l of Object.keys(e.desc)){const fr=I.free&&I.free[l],op=I.open&&I.open[l];if(fr&&op&&typeof e.desc[l]==='string'&&e.desc[l].includes(fr))e.desc[l]=e.desc[l].split(fr).join(op)}
+  const tr=I.desc&&I.desc[e.desc.en];if(tr)for(const l of LANGS3){if(l!=='en'&&tr[l]&&(!e.desc[l]||(I.free[l]&&e.desc[l].includes(I.free[l]))))e.desc[l]=tr[l]}
+  if(JSON.stringify(e.desc)!==before)n++}
+ if(n){EVS.save();console.log('[ev3] fixed',n,'event descriptions')}return n}catch(err){console.error('[ev3] fixDesc',err.message);return 0}}
+const repairDesc=fixDesc;
+function boot(){if(process.env.EV3_AUTOIMPORT!=='0'){const r=importSchedule();if(r.ok&&r.added)console.log('[ev3] imported',r.added,'events')}else loadCatalog();migrateMin();fixDesc();
  if(!timer){timer=setInterval(()=>{try{const now=Date.now();v3().forEach(e=>status(e,now));finalize(now)}catch(e){console.error('[ev3] tick',e.message)}},+process.env.EV3_TICK_MS||60e3);timer.unref()}}
-module.exports={boot,migrateMin,repairDesc,eligible,handle,handleWs,onMatchOver,finalize,join,list,board,status,visible,importSchedule,review,showcase,regOpens,MIN_PLAYERS,MIN_RANKED,_S:S,_cat:()=>CAT};
+module.exports={boot,migrateMin,repairDesc,fixDesc,eligible,handle,handleWs,onMatchOver,finalize,join,list,board,status,visible,importSchedule,review,showcase,regOpens,MIN_PLAYERS,MIN_RANKED,_S:S,_cat:()=>CAT};
