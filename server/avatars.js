@@ -4,7 +4,7 @@
 //  GET  /avatar/<FID>.webp                 the photo (404 when none or hidden), cached by ?v=<ver>
 //  POST /avatar/report     {pid,key,fid,why} one report per player per photo; hidden by itself after AV_AUTOHIDE (5) reports
 //  POST /avatar/toon/status {pid,key}      -> {configured, nextAt}
-//  POST /avatar/toon       {pid,key,consent,photo} one cartoon per player per 30 days (server side), photo kept in memory only
+//  POST /avatar/toon       {pid,key,consent,photo} one cartoon per player per 30 days (server side), global cap 200 per UTC day, photo kept in memory only
 //  GET  /avatar/toon/<job>                 -> {status, image}
 //  admin: GET /admin/api/avatars (reported or hidden), POST /admin/api/avatars/hide {fid,hidden}
 // Storage: Postgres table ls_avatars when DATABASE_URL is set, else a JSON file (AV_FILE).
@@ -12,7 +12,7 @@ const fs=require('fs'),path=require('path'),crypto=require('crypto');
 const store=require('./store.js');
 const TBL=/^[a-z_]{1,40}$/.test(process.env.AV_TABLE||'')?process.env.AV_TABLE:'ls_avatars';
 const FILE=process.env.AV_FILE||path.join(__dirname,'data','avatars.json');
-const MAXB=30*1024,DAY_UP=+process.env.AV_DAY_UPLOADS||10,TOON_DAYS=+process.env.AV_TOON_DAYS||30,AUTOHIDE=+process.env.AV_AUTOHIDE||5;
+const MAXB=30*1024,DAY_UP=+process.env.AV_DAY_UPLOADS||10,TOON_DAYS=+process.env.AV_TOON_DAYS||30,AUTOHIDE=+process.env.AV_AUTOHIDE||5,TOON_DAY_CAP=200;
 const FIDRE=/^[0-9A-F]{6}$/;
 module.exports=function(ctx){const {fidOf,LO,GEN}=ctx;
  const M=new Map();// fid -> {fid,pid,mime,ver,hidden,reports:[{by,t,why}],toonAt,img(Buffer|null|undefined=not loaded)}
@@ -67,6 +67,8 @@ module.exports=function(ctx){const {fidOf,LO,GEN}=ctx;
    const pid=authed(m);if(!pid)return J(res,403,{error:'auth'});if(LO.banned&&LO.banned(pid))return J(res,403,{error:'banned'});
    for(const j of jobs.values())if(j.pid===pid&&j.status==='processing')return J(res,202,{job:j.id,status:'processing'});
    const r=row(pid);const n=nextToon(r);if(n>Date.now())return J(res,429,{error:'limit',nextAt:n,days:TOON_DAYS});
+   const day0=Date.parse(new Date().toISOString().slice(0,10)+'T00:00:00Z');let today=0;for(const x of M.values())if((x.toonAt||0)>=day0)today++;
+   if(today>=TOON_DAY_CAP)return J(res,429,{error:'busy'});
    const prev=r.toonAt||0;r.toonAt=Date.now();await put(r,false);
    const id=crypto.randomUUID();const job={id,pid,status:'processing',created:Date.now(),nextAt:nextToon(r)};jobs.set(id,job);
    GEN.avatar(m.photo).then(out=>{job.image=out;job.status='done'}).catch(e=>{job.status='failed';job.nextAt=0;r.toonAt=prev;put(r,false).catch(()=>{});console.error('[avatar toon] failed',String(e.message||e).slice(0,160))});
