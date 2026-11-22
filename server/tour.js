@@ -19,7 +19,7 @@ module.exports=function(ctx){const {clients,send,rooms,newRoom,joinRoom,startGam
  function pub(t,pid){const you=t.players.findIndex(p=>p.pid===pid);
   return {t:'tstate',id:t.id,cup:t.cup,name:CUPS[t.cup].name,state:t.state,round:t.round,roundName:ROUNDS[t.round]||'',size:8,you,fillIn:t.state==='wait'?Math.max(0,t.fillAt-Date.now()):null,
    prize:CUPS[t.cup].prize,fee:CUPS[t.cup].fee,champ:t.champ,
-   players:t.players.map(p=>({name:p.name,avatar:p.avatar,fid:p.pid?fidOf(p.pid):null,bot:!!p.bot,out:!!p.out})),
+   players:t.players.map(p=>({name:p.name,avatar:p.avatar,avx:p.avx,fid:p.pid?fidOf(p.pid):null,bot:!!p.bot,out:!!p.out})),
    rounds:t.rounds.map(rd=>rd.map(m=>[m.a,m.b,m.w==null?null:m.w,m.live?1:0])),
    room:(()=>{const m=you>=0&&t.rounds[t.round]&&t.rounds[t.round].find(m=>(m.a===you||m.b===you)&&m.w==null&&m.code);return m?m.code:null})()}}
  function bcast(t){t.players.forEach(p=>{if(!p.pid)return;const c=clients.get(p.pid);if(c&&c.ws)send(c.ws,pub(t,p.pid))})}
@@ -36,7 +36,7 @@ module.exports=function(ctx){const {clients,send,rooms,newRoom,joinRoom,startGam
   rd.forEach((m,mi)=>{const A=t.players[m.a],B=t.players[m.b];
    if(A.bot&&B.bot){m.w=crypto.randomInt(2)?m.a:m.b;return}
    const r=newRoom(2,{mode:CUPS[t.cup].mode,three6:true},false);r.tour={id:t.id,round:t.round,mi};m.code=r.code;m.live=true;
-   [A,B].forEach(p=>{if(p.bot)r.seats.push({bot:true,fill:true,name:p.name,avatar:p.avatar});else{const c=clients.get(p.pid);if(c&&c.ws&&c.ws.readyState===1)joinRoom(c,p.pid,r);else r.seats.push({pid:p.pid,name:p.name,avatar:p.avatar})}});
+   [A,B].forEach(p=>{if(p.bot)r.seats.push({bot:true,fill:true,name:p.name,avatar:p.avatar});else{const c=clients.get(p.pid);if(c&&c.ws&&c.ws.readyState===1)joinRoom(c,p.pid,r);else r.seats.push({pid:p.pid,name:p.name,avatar:p.avatar,avx:p.avx})}});
    if(!r.started)startGame(r)});
   bcast(t);check(t)}
  function check(t){const rd=t.rounds[t.round];if(!rd||rd.some(m=>m.w==null))return;
@@ -59,7 +59,7 @@ module.exports=function(ctx){const {clients,send,rooms,newRoom,joinRoom,startGam
   case 'tjoin':{const cup=CUPS[m.cup]?m.cup:null;if(!cup){send(ws,{t:'error',msg:'Unknown tournament'});return true}
    const cur=byPid.get(pid)&&T.get(byPid.get(pid));if(cur&&cur.state!=='done'){send(ws,pub(cur,pid));return true}
    let t=[...T.values()].find(x=>x.cup===cup&&x.state==='wait'&&x.players.length<8);if(!t)t=create(cup);
-   t.players.push({pid,name:c.name,avatar:c.avatar});byPid.set(pid,t.id);bcast(t);if(t.players.length>=8)start(t);return true}
+   t.players.push({pid,name:c.name,avatar:c.avatar,avx:c.avx});byPid.set(pid,t.id);bcast(t);if(t.players.length>=8)start(t);return true}
   case 'tleave':{const id=byPid.get(pid),t=id&&T.get(id);if(!t){send(ws,{t:'tleft',refund:null});return true}
    if(t.state==='wait'){t.players=t.players.filter(p=>p.pid!==pid);byPid.delete(pid);send(ws,{t:'tleft',refund:CUPS[t.cup].fee,cup:t.cup});
     if(!t.players.some(p=>p.pid)){clearTimeout(t.timer);T.delete(t.id)}else bcast(t)}

@@ -14,11 +14,11 @@ module.exports=function(ctx){const {clients,send,fids,fidOf}=ctx;
  // users keyed by fid (public 6-char id); pid kept privately for routing
  function U(fid){return D.users[fid]}
  function ensure(pid,c){const fid=c.fid;let u=D.users[fid];if(!u)u=D.users[fid]={fid,pid,name:c.name,avatar:c.avatar,level:1,wins:0,games:0,frame:'none',friends:[],reqIn:[],reqOut:[],blocked:[],recent:[],inbox:[],club:null,created:Date.now()};
-  u.pid=pid;u.name=c.name;u.avatar=c.avatar;u.seen=Date.now();['friends','reqIn','reqOut','blocked','recent','inbox'].forEach(k=>{if(!Array.isArray(u[k]))u[k]=[]});return u}
+  u.pid=pid;u.name=c.name;u.avatar=c.avatar;if(c.avx)u.avx=c.avx;else delete u.avx;u.seen=Date.now();['friends','reqIn','reqOut','blocked','recent','inbox'].forEach(k=>{if(!Array.isArray(u[k]))u[k]=[]});return u}
  function online(fid){const u=U(fid);const c=u&&clients.get(u.pid);return !!(c&&c.ws&&c.ws.readyState===1)}
  function toFid(fid,m){const u=U(fid);const c=u&&clients.get(u.pid);if(c&&c.ws)send(c.ws,m);return !!(c&&c.ws&&c.ws.readyState===1)}
  function setHw(u,h){u.hw={pts:Math.max(0,Math.min(1e7,h.pts|0)),games:Math.max(0,Math.min(1e5,h.games|0)),wins:Math.max(0,Math.min(1e5,h.wins|0))}}
-function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return {fid:u.fid,name:u.name,avatar:u.avatar,level:u.level,wins:u.wins,games:u.games,caps:u.caps,best:u.best,cc:u.cc||'',kills:u.kills|0,deaths:u.deaths|0,sg:u.sg|0,sw:u.sw|0,mono:u.mono|0,frame:u.frame,skin:u.skin||null,online:online(u.fid),club:cl?{id:cl.id,name:cl.name,badge:cl.badge}:null,
+function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return {fid:u.fid,name:u.name,avatar:u.avatar,avx:u.avx,level:u.level,wins:u.wins,games:u.games,caps:u.caps,best:u.best,cc:u.cc||'',kills:u.kills|0,deaths:u.deaths|0,sg:u.sg|0,sw:u.sw|0,mono:u.mono|0,frame:u.frame,skin:u.skin||null,online:online(u.fid),club:cl?{id:cl.id,name:cl.name,badge:cl.badge}:null,
   friend:viewer?viewer.friends.includes(u.fid):false,pending:viewer?viewer.reqOut.includes(u.fid):false,incoming:viewer?viewer.reqIn.includes(u.fid):false,blocked:viewer?viewer.blocked.includes(u.fid):false}}
  function blockedEither(a,b){return (a.blocked||[]).includes(b.fid)||(b.blocked||[]).includes(a.fid)}
  function social(u){return {t:'social',me:pub(u),friends:u.friends.map(f=>pub(U(f),u)).filter(Boolean),reqIn:u.reqIn.map(f=>pub(U(f),u)).filter(Boolean),reqOut:u.reqOut.slice(),blocked:u.blocked.map(f=>pub(U(f),u)).filter(Boolean),
@@ -60,9 +60,9 @@ function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return
     // 3.11.0 generic seasonal events (Festival of Lights = 'fol26')
     case 'evscore':{const ev=String(m.ev||'');if(!/^[a-z0-9]{2,12}$/.test(ev))return true;u.ev=u.ev||{};u.ev[ev]={pts:Math.max(0,Math.min(1e7,m.pts|0)),games:Math.max(0,Math.min(1e5,m.games|0)),wins:Math.max(0,Math.min(1e5,m.wins|0))};persist();return true}
     case 'evlb':{const ev=String(m.ev||'');const sc=x=>x.ev&&x.ev[ev];const all=Object.values(D.users).filter(x=>sc(x)&&sc(x).pts>0).sort((a,b)=>sc(b).pts-sc(a).pts);const rank=all.indexOf(u)+1;
-     send(ws,{t:'evlb',ev,list:all.slice(0,50).map(x=>({fid:x.fid,name:x.name,avatar:x.avatar,cc:x.cc||'',pts:sc(x).pts,wins:sc(x).wins,games:sc(x).games})),rank,total:all.length});return true}
+     send(ws,{t:'evlb',ev,list:all.slice(0,50).map(x=>({fid:x.fid,name:x.name,avatar:x.avatar,avx:x.avx,cc:x.cc||'',pts:sc(x).pts,wins:sc(x).wins,games:sc(x).games})),rank,total:all.length});return true}
     case 'hwlb':{const all=Object.values(D.users).filter(x=>x.hw&&x.hw.pts>0).sort((a,b)=>b.hw.pts-a.hw.pts);const rank=all.indexOf(u)+1;
-     send(ws,{t:'hwlb',list:all.slice(0,50).map(x=>({fid:x.fid,name:x.name,avatar:x.avatar,cc:x.cc||'',pts:x.hw.pts,wins:x.hw.wins,games:x.hw.games})),rank,total:all.length});return true}
+     send(ws,{t:'hwlb',list:all.slice(0,50).map(x=>({fid:x.fid,name:x.name,avatar:x.avatar,avx:x.avx,cc:x.cc||'',pts:x.hw.pts,wins:x.hw.wins,games:x.hw.games})),rank,total:all.length});return true}
     case 'social':send(ws,social(u));return true;
     case 'profile':send(ws,{t:'profile',p:tu?pub(tu,u):null,fid:tf});return true;
     case 'freq':{if(!tu||tf===me){send(ws,{t:'error',msg:'Player not found'});return true}if(blockedEither(u,tu)){send(ws,{t:'error',msg:'Cannot add this player'});return true}
@@ -98,7 +98,7 @@ function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return
     case 'crooms':send(ws,{t:'crooms',list:[...CR.values()].map(r=>({id:r.id,name:r.name,count:r.members.size,seats:r.seats.length,used:r.seats.filter(s=>s.fid).length}))});return true;
     case 'cjoin':{const r=CR.get(String(m.id));if(!r)return true;crLeave(me);r.members.add(me);if(!r.host)r.host=me;crBc(r,crInfo(r));return true}
     case 'cleave':crLeave(me);send(ws,{t:'cleft'});return true;
-    case 'cchat':{const r=roomOf(me);if(!r||!rate(me,500,'c'))return true;const text=clean(m.text,200);if(!text)return true;const x={fid:me,name:u.name,avatar:u.avatar,text,t:Date.now()};r.chat.push(x);if(r.chat.length>50)r.chat.shift();crBc(r,{t:'cmsg',id:r.id,m:x});return true}
+    case 'cchat':{const r=roomOf(me);if(!r||!rate(me,500,'c'))return true;const text=clean(m.text,200);if(!text)return true;const x={fid:me,name:u.name,avatar:u.avatar,avx:u.avx,text,t:Date.now()};r.chat.push(x);if(r.chat.length>50)r.chat.shift();crBc(r,{t:'cmsg',id:r.id,m:x});return true}
     case 'seat':{const r=roomOf(me);const i=m.i|0;if(!r||!r.seats[i])return true;const s=r.seats[i];if(s.fid||(s.locked&&r.host!==me))return true;r.seats.forEach(x=>{if(x.fid===me){x.fid=null;x.mic=false}});s.fid=me;s.mic=false;crBc(r,crInfo(r));return true}
     case 'unseat':{const r=roomOf(me);if(!r)return true;r.seats.forEach(x=>{if(x.fid===me){x.fid=null;x.mic=false}});crBc(r,crInfo(r));return true}
     case 'smic':{const r=roomOf(me);if(!r)return true;const s=r.seats.find(x=>x.fid===me);if(s){s.mic=!!m.on;crBc(r,crInfo(r))}return true}
@@ -114,7 +114,7 @@ function pub(u,viewer){if(!u)return null;const cl=u.club&&D.clubs[u.club];return
     case 'clubjoin':{const cl=D.clubs[String(m.id)];if(!cl||u.club)return true;if(cl.members.length>=30){send(ws,{t:'error',msg:'Club is full'});return true}cl.members.push(me);u.club=cl.id;persist();cl.members.forEach(f=>toFid(f,{t:'club',club:clubInfo(cl.id)}));return true}
     case 'clubleave':{const cl=u.club&&D.clubs[u.club];if(!cl)return true;cl.members=cl.members.filter(x=>x!==me);u.club=null;if(!cl.members.length)delete D.clubs[cl.id];else{if(cl.owner===me)cl.owner=cl.members[0];cl.members.forEach(f=>toFid(f,{t:'club',club:clubInfo(cl.id)}))}persist();send(ws,{t:'club',club:null});return true}
     case 'club':send(ws,{t:'club',club:u.club?clubInfo(u.club):null});return true;
-    case 'clubchat':{const cl=u.club&&D.clubs[u.club];if(!cl||!rate(me,500,'k'))return true;if(!require('./liveops.js').flag('clubsChat')){send(ws,{t:'toast',msg:'Club chat is paused for a short time.'});return true}if(require('./liveops.js').muted(pid)){send(ws,{t:'toast',msg:'You are muted for now.'});return true}m.text=require('./liveops.js').filterText(m.text);const x={fid:me,name:u.name,avatar:u.avatar,text:clean(m.text,200),t:Date.now()};if(!x.text)return true;cl.chat.push(x);if(cl.chat.length>50)cl.chat.shift();persist();cl.members.forEach(f=>toFid(f,{t:'clubmsg',m:x}));return true}
+    case 'clubchat':{const cl=u.club&&D.clubs[u.club];if(!cl||!rate(me,500,'k'))return true;if(!require('./liveops.js').flag('clubsChat')){send(ws,{t:'toast',msg:'Club chat is paused for a short time.'});return true}if(require('./liveops.js').muted(pid)){send(ws,{t:'toast',msg:'You are muted for now.'});return true}m.text=require('./liveops.js').filterText(m.text);const x={fid:me,name:u.name,avatar:u.avatar,avx:u.avx,text:clean(m.text,200),t:Date.now()};if(!x.text)return true;cl.chat.push(x);if(cl.chat.length>50)cl.chat.shift();persist();cl.members.forEach(f=>toFid(f,{t:'clubmsg',m:x}));return true}
     // ----- WebRTC signaling relay -----
     case 'rtc':{if(!tu||tf===me||!sameVoice(me,tf)||blockedEither(u,tu))return true;const data=m.data;if(!data||JSON.stringify(data).length>20000)return true;toFid(tf,{t:'rtc',from:me,data});return true}
     case 'vstate':{// broadcast mic on/off + speaking to voice peers

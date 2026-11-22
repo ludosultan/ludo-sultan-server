@@ -188,6 +188,7 @@ textarea.in{min-height:64px;resize:vertical}
   <div><div class="card"><h3>Ban or mute</h3><label>Player ID or friend code</label><input class="in" id="mdId"><div class="row"><div><label>Action</label><select class="in" id="mdKind"><option value="ban">Ban</option><option value="mute">Mute</option></select></div><div><label>Duration</label><select class="in" id="mdH"><option value="24">24 hours</option><option value="72">3 days</option><option value="168">7 days</option><option value="720">30 days</option><option value="0">Permanent</option></select></div></div>
     <label>Reason</label><input class="in" id="mdR" placeholder="Abusive chat"><button class="btn r" style="margin-top:12px;width:100%" onclick="modSet()">Apply</button></div>
    <div class="card"><h3>Active bans &amp; mutes</h3><div class="tw"><table><tbody id="mdRows"></tbody></table></div></div></div></div>
+ <div class="card"><h3>Reported profile photos <span id="avN"></span></h3><p style="color:var(--mut);font-size:12px;margin:0 0 8px">Photos players reported. A photo hides by itself after 5 different reports. Hide keeps it off every screen (the player sees their painted avatar again and cannot upload a new photo until you show it).</p><div class="tw"><table><thead><tr><th>Photo</th><th>Friend code</th><th>Reports</th><th>Reasons</th><th>Last report</th><th>Status</th><th></th></tr></thead><tbody id="avRows"></tbody></table></div></div>
 </section>
 <section class="sec" id="s-ota"><div class="top"><div><h1>Live Update (OTA)</h1><p>Ship small fixes to the game's web code (HTML/JS/CSS) with no Play upload. Native code never changes.</p></div><div class="acts"><button class="btn" onclick="otaPause()" id="otaPauseB">Pause</button></div></div>
  <div class="steps" id="otaSteps"></div>
@@ -257,7 +258,7 @@ async function load(s){try{if(s==='dash'){ST.ov=await lo('overview');renderDash(
  else if(s==='codes'){const c=await lo('codes');renderCodes(c.codes)}
  else if(s==='themes'){ST.themes=await lo('themes');renderThemes()}
  else if(s==='config'){await loadCfg();renderConfig()}
- else if(s==='mod'){ST.mod=await lo('mod');renderMod()}
+ else if(s==='mod'){ST.mod=await lo('mod');renderMod();loadAvs()}
  else if(s==='integrity'){ST.ig=await lo('integrity');renderIntegrity()}
  else if(s==='ota'){ST.ota=await lo('ota');renderOta()}
  else if(s==='audit'){await loadAudit();renderAudit()}
@@ -423,6 +424,9 @@ async function saveChat(){if(await saveCfg('chat',{blocked:$('#chatTa').value}))
 async function saveBadges(){const v=$$('#bdRows tr').map(t=>({n:t.querySelector('.bd-n').value.trim(),g:+t.querySelector('.bd-g').value,w:+t.querySelector('.bd-w').value,k:+t.querySelector('.bd-k').value}));if(await saveCfg('badges',v))renderConfig()}
 function showHist(){const H=ST.cfg.hist;openM(`<h3>Config history <span>restore any version</span></h3><div class="tw"><table><thead><tr><th>Version</th><th>Replaced at</th><th>By</th><th></th></tr></thead><tbody>${H.map(h=>`<tr><td>v${h.v}</td><td>${dt(h.t)}</td><td>${E(h.by)}</td><td><button class="btn s" onclick="revertCfg(${h.v})">Restore</button></td></tr>`).join('')||'<tr><td colspan=4 class="empty">No history yet</td></tr>'}</tbody></table></div><div class="row" style="margin-top:12px"><button class="btn" onclick="closeM()">Close</button></div>`)}
 async function revertCfg(v){if(!confirm('Restore config v'+v+'?'))return;try{const j=await lo('config/revert',{v});ST.cfg.cfg=j.cfg;closeM();toast('Restored');load('config')}catch(e){toast(e.message,1)}}
+async function loadAvs(){try{const r=await api('/admin/api/avatars');const L=r.list||[];$('#avN').textContent=L.length?L.length+' to review':'none';
+ $('#avRows').innerHTML=L.map(x=>`<tr><td><img src="${E(x.img||'')}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;${x.hidden?'filter:grayscale(1);opacity:.6':''}"></td><td>${E(x.fid)}</td><td>${x.reports|0}</td><td>${E((x.why||[]).join(', '))}</td><td>${x.last?dt(x.last):''}</td><td>${x.hidden?(x.hidden==='auto'?'Hidden (auto)':'Hidden'):'Shown'}</td><td>${x.hidden?`<button class="btn" onclick="avHide('${E(x.fid)}',false)">Show</button>`:`<button class="btn r" onclick="avHide('${E(x.fid)}',true)">Hide photo</button>`}</td></tr>`).join('')||'<tr><td colspan="7" style="color:var(--mut)">No reported photos</td></tr>'}catch(e){$('#avN').textContent=''}}
+async function avHide(fid,h){try{await api('/admin/api/avatars/hide',{fid,hidden:h});toast(h?'Photo hidden':'Photo shown');loadAvs()}catch(e){toast(e.message||'error',1)}}
 function renderMod(){const M=ST.mod;const open=M.reports.filter(r=>!r.handled);$('#rpN').textContent=open.length+' open';
  $('#rpRows').innerHTML=M.reports.slice(0,80).map(r=>`<tr style="${r.handled?'opacity:.5':''}"><td style="white-space:nowrap">${dt(r.t)}</td><td><b>${E(r.name)}</b><br><small class="mono">${E(r.fid)}</small></td><td>${E(r.reason)}<br><small class="mut">${E(r.ctx||'')}</small></td><td>${E(r.byName)}</td><td>${r.count}</td><td style="white-space:nowrap">${r.pid?`<button class="btn s" onclick="go('players');openPlayer('${E(r.pid)}')">Open</button>`:''} ${r.handled?'':`<button class="btn s" onclick="handled('${E(r.key)}')">Done</button>`}</td></tr>`).join('')||'<tr><td colspan=6 class="empty">No reports 🎉</td></tr>';
  const L=[...M.bans.map(b=>Object.assign({k:'ban'},b)),...M.mutes.map(b=>Object.assign({k:'mute'},b))];

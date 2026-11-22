@@ -12,6 +12,7 @@ const MIME={'.html':'text/html','.js':'application/javascript','.png':'image/png
 const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.split('?')[0]);if(u==='/')u='/index.html';
  if(u==='/health'){res.end('ok');return}
  try{if(LO.handle(req,res,u))return}catch(e){console.error('liveops',e.message);res.statusCode=500;res.end('error');return}
+ if(u.startsWith('/avatar')||u.startsWith('/admin/api/avatars')){AVX.handle(req,res,u).catch(e=>{console.error('avatar',e.message);if(!res.headersSent){res.statusCode=500;res.end('error')}});return}
  try{if(EV3.handle(req,res,u)||WAL.handle(req,res,u))return}catch(e){console.error('ev3/wallet',e.message);res.statusCode=500;res.end('error');return}
  try{if(require('./events.js').handle(req,res,u))return}catch(e){console.error('events',e.message);res.statusCode=500;res.end('error');return}
  if(u==='/turn-status'){res.end(require('./turn.js').enabled()?'turn:on':'turn:off');return}
@@ -21,6 +22,8 @@ const server=http.createServer((req,res)=>{let u=decodeURIComponent(req.url.spli
  res.writeHead(200,{'Content-Type':MIME[path.extname(f)]||'application/octet-stream'});fs.createReadStream(f).pipe(res)});
 // ---- 3.5.8 "Make Your Own Emojis" (stub + pluggable generator; see server/emojigen.js) ----
 const GEN=require('./emojigen.js');const ceJobs=new Map();
+// 3.15.6: profile photos, report/hide, Photo to cartoon (server/avatars.js)
+const AVX=require('./avatars.js')({fidOf,LO,GEN});
 function cors(res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS')}
 // 3.15.1: Make Your Own Emojis. Needs the device key (pid+key), consent and 1-5 photos. One job at a time per player, 3 per day.
 // Photos stay in memory only for the job; finished jobs are kept 30 min for the app to fetch, then dropped.
@@ -70,13 +73,13 @@ function code(){let c;do c=Math.random().toString(36).slice(2,7).toUpperCase();w
 function send(ws,m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m))}
 function bc(r,m){r.seats.forEach(s=>{if(s.pid&&clients.get(s.pid)&&clients.get(s.pid).room===r.code)send(clients.get(s.pid).ws,m)})}
 function roomInfo(r){return {t:'room',code:r.code,game:r.mg||undefined,mg:r.mg||undefined,six:!!r.six,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null,public:r.public,ev:r.ev||undefined,size:r.size,host:r.host,started:r.started,opts:r.opts,bet:r.bet||0,fillIn:r.fillAt&&!r.started?Math.max(0,r.fillAt-Date.now()):null,
- players:r.seats.map(s=>({fid:s.pid?fidOf(s.pid):null,name:s.name,avatar:s.avatar,tok:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).tok)||s.tok||null,dice:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).dice)||s.dice||null,bot:!!s.bot&&!s.fill,online:s.bot||!!(s.pid&&clients.get(s.pid)&&clients.get(s.pid).ws&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws.readyState===1)}))}}
+ players:r.seats.map(s=>({fid:s.pid?fidOf(s.pid):null,name:s.name,avatar:s.avatar,avx:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).avx)||s.avx||undefined,tok:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).tok)||s.tok||null,dice:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).dice)||s.dice||null,bot:!!s.bot&&!s.fill,online:s.bot||!!(s.pid&&clients.get(s.pid)&&clients.get(s.pid).ws&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws.readyState===1)}))}}
 function sendRoom(r){r.seats.forEach((s,i)=>{const c=s.pid&&clients.get(s.pid);if(c&&c.room===r.code)send(c.ws,{...roomInfo(r),you:i})})}
 function stateMsg(r){return {t:'state',six:!!r.six,g:r.g,phase:r.phase,dice:r.dice,moves:r.moves,deadline:r.deadline,left:Math.max(0,r.deadline-Date.now()),turnMs:TURN_MS,colors:r.colors}}
 const MODES=['classic','quick','team','arrow','blitz','kill'];
 function newRoom(size,opts,pub){const game=opts&&mg.is(opts.game)&&opts.game;if(game){const r={code:code(),size:mg.size(game),mg:game,opts:{game,mode:game},public:!!pub,seats:[],host:null,started:false,g:null,phase:'wait',timer:null,created:Date.now()};rooms.set(r.code,r);return r}const six=size===6||!!(opts&&opts.six);const md=six?'classic':MODES.includes(opts&&opts.mode)?opts.mode:'classic';if(md==='team')size=4;if(six)size=Math.max(2,Math.min(6,size));const r={code:code(),size,six,opts:{blockade:!six&&!!(opts&&opts.blockade),three6:!!(opts&&opts.three6),mode:md,night:!!(opts&&opts.night),six},public:!!pub,seats:[],host:null,started:false,g:null,phase:'wait',dice:0,moves:[],timer:null,created:Date.now()};rooms.set(r.code,r);return r}
 function joinRoom(c,pid,r){if(c.room&&c.room!==r.code)leaveRoom(pid);let i=r.seats.findIndex(s=>s.pid===pid);
- if(i<0){if(r.started)return send(c.ws,{t:'error',msg:'Game already started'});if(r.seats.length>=r.size)return send(c.ws,{t:'error',msg:'Room is full'});r.seats.push({pid,name:c.name,avatar:c.avatar});if(!r.host)r.host=pid}
+ if(i<0){if(r.started)return send(c.ws,{t:'error',msg:'Game already started'});if(r.seats.length>=r.size)return send(c.ws,{t:'error',msg:'Room is full'});r.seats.push({pid,name:c.name,avatar:c.avatar,avx:c.avx});if(!r.host)r.host=pid}
  c.room=r.code;sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else send(c.ws,stateMsg(r))}
  if(!r.started&&r.seats.length===r.size)startGame(r);
  if(r.ev){evArm(r);return}
@@ -133,6 +136,7 @@ function ludoBet(c,m){const b=BETS_OK.includes(+m.bet)?(+m.bet):0;if(!b||!c.cb)r
 function betJoinBlock(c,pid,r,m){if(!r||r.mg||r.public||!r.bet||r.started||r.seats.some(s=>s.pid===pid))return '';
  if(!c.cb)return 'Please update Ludo Sultan to join coin tables.';if(m.coins!=null&&(+m.coins||0)<r.bet)return 'Not enough coins for this table.';return ''}
 const tour=require('./tour.js')({clients,send,rooms,newRoom:(...a)=>newRoom(...a),joinRoom:(...a)=>joinRoom(...a),startGame:(...a)=>startGame(...a),fidOf,FILLN,FILLA});
+{const _pg=social.purge;social.purge=function(p){AVX.purge(p).catch(e=>console.error('avatar purge',e.message));return _pg?_pg.apply(this,arguments):false}}
 const accounts=require('./accounts.js')({send,social});LO.bind({clients,rooms,accounts});
 const turn=require('./turn.js');
 wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAlive=true);
@@ -142,7 +146,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
      if(!mt&&!LO.flag('onlinePlay')){try{ws.send(JSON.stringify({t:'maint',msg:{en:'Online play is paused for a short time. You can still play offline.'},until:0}))}catch(e){}pid=null;setTimeout(()=>{try{ws.close()}catch(e){}},200);return}
      if(mt&&mt.blockOnline){try{ws.send(JSON.stringify({t:'maint',msg:mt.msg,until:mt.until||0}))}catch(e){}pid=null;setTimeout(()=>{try{ws.close()}catch(e){}},200);return}}let c=clients.get(pid);
    if(c){if(c.ws&&c.ws!==ws)try{c.ws.close()}catch(e){};c.ws=ws}else{c={ws,room:null};clients.set(pid,c)}
-   c.name=String(m.name||'Player').slice(0,16);c.avatar=(a=>/^av:[a-z0-9_]{1,24}$/i.test(a)?a:a.slice(0,4))(String(m.avatar||'🦁'));
+   c.name=String(m.name||'Player').slice(0,16);c.avatar=(a=>/^av:[a-z0-9_]{1,24}$/i.test(a)?a:a.slice(0,4))(String(m.avatar||'🦁'));c.avx=AVX.clean(m.avx);
    c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r){sendRoom(r);if(r.started){if(r.mg){mg.onJoinStarted(r,c);mg.schedule(r)}else{send(ws,stateMsg(r));schedule(r);resendOver(r,ws)}}}return}
   if(!pid)return;const c=clients.get(pid);const r=c.room&&rooms.get(c.room);
   if(m.t==='caps'){c.cb=!!m.bet;return} // 3.14.4: client understands coin entry at friend / private Ludo tables
@@ -176,9 +180,9 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    case 'gift':if(r&&r.started){const i=seatOf(r,pid);const to=m.to|0;if(i>=0&&to>=0&&to<r.seats.length&&to!==i)bc(r,{t:'gift',from:i,to,item:String(m.item||'').slice(0,8)})}break;
    case 'away':{c.away=!!m.on;if(r&&r.started){const i=seatOf(r,pid);if(i>=0){bc(r,{t:'away',pi:i,on:!!m.on});schedule(r)}}break}
    case 'sync':if(r){sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else{send(ws,stateMsg(r));resendOver(r,ws)}}}break;
-   case 'presence':{const out={};(Array.isArray(m.fids)?m.fids:[]).slice(0,100).forEach(f=>{f=String(f).toUpperCase();const cp=fids.get(f),cc=cp&&clients.get(cp);out[f]=cc?{online:!!(cc.ws&&cc.ws.readyState===1),name:cc.name,avatar:cc.avatar,playing:!!(cc.room&&rooms.get(cc.room)&&rooms.get(cc.room).started)}:{online:false}});send(ws,{t:'presence',list:out});break}
+   case 'presence':{const out={};(Array.isArray(m.fids)?m.fids:[]).slice(0,100).forEach(f=>{f=String(f).toUpperCase();const cp=fids.get(f),cc=cp&&clients.get(cp);out[f]=cc?{online:!!(cc.ws&&cc.ws.readyState===1),name:cc.name,avatar:cc.avatar,avx:cc.avx,playing:!!(cc.room&&rooms.get(cc.room)&&rooms.get(cc.room).started)}:{online:false}});send(ws,{t:'presence',list:out});break}
    case 'challenge':{const tp=fids.get(String(m.to||'').toUpperCase()),tc=tp&&clients.get(tp);if(!tc||!tc.ws||tc.ws.readyState!==1||tp===pid){send(ws,{t:'error',msg:'Friend is offline'});break}
-     if(mg.is(m.game)){const nr=newRoom(mg.size(m.game),{game:m.game},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,game:m.game,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);let bet=ludoBet(c,m);if(bet&&!tc.cb){bet=0;send(ws,{t:'toast',code:'freebet',msg:'Your friend needs the new app version for coin games. This game is free.'})}if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar}});break}
+     if(mg.is(m.game)){const nr=newRoom(mg.size(m.game),{game:m.game},false);const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,game:m.game,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar,avx:c.avx}});break}const md=MODES.includes(m.mode)&&m.mode!=='team'?m.mode:'classic';const nr=newRoom(2,{mode:md,night:!!m.night},false);let bet=ludoBet(c,m);if(bet&&!tc.cb){bet=0;send(ws,{t:'toast',code:'freebet',msg:'Your friend needs the new app version for coin games. This game is free.'})}if(bet)nr.bet=bet;joinRoom(c,pid,nr);send(tc.ws,{t:'challenge',code:nr.code,mode:md,bet:nr.bet||0,from:{fid:c.fid,name:c.name,avatar:c.avatar,avx:c.avx}});break}
    case 'decline':{const rr=rooms.get(String(m.code||''));if(rr&&!rr.started&&rr.host){const hc=clients.get(rr.host);hc&&send(hc.ws,{t:'declined',name:c.name})}break}
    case 'lbpost':{const e={pid,fid:c.fid||'',name:String(m.name||'Player').slice(0,16),av:String(m.av||'').slice(0,4),tr:Math.max(0,Math.min(1e6,m.tr|0)),wins:Math.max(0,m.wins|0),cc:String(m.cc||'').slice(0,3).toUpperCase(),city:String(m.city||'').slice(0,40),t:Date.now()};const old=LB.get(pid);e.gm=m.gm?lbg.clean(m.gm):(old&&old.gm)||{};LB.set(pid,e);lbSave();break}
    case 'lb':{const sc=['local','national','friends','global'].includes(m.scope)?m.scope:'global';let a=[...LB.values()];
@@ -205,4 +209,4 @@ EV3.boot();
 server.listen(PORT,()=>console.log('Ludo Sultan server on http://localhost:'+PORT+' (store: '+store.info+')'));
 let stopping=false;function shutdown(){if(stopping)return;stopping=true;const k=setTimeout(()=>process.exit(0),8000);social.flush();store.close().catch(e=>console.error('flush',e.message)).finally(()=>{clearTimeout(k);process.exit(0)})}
 process.on('SIGTERM',shutdown);process.on('SIGINT',shutdown);
-module.exports={server,rooms,social,tour,accounts};
+module.exports={server,rooms,social,tour,accounts,AVX};

@@ -81,7 +81,7 @@ function onMatchOver(r,order){try{if(!r||r.mg||!r.public||r.tour||!r.g||!Array.i
    const place=order.indexOf(i),win=place===0,second=place===1&&r.seats.length>2,caps=Math.min(P.captureCapPerMatch,(r.caps&&r.caps[i])|0);
    row.games++;if(win)row.wins++;row.cur=win?(row.cur|0)+1:0;row.best=Math.max(row.best|0,row.cur);
    const add=P.played+(win?P.win:0)+(second?P.second:0)+caps*P.capture;const before=row.pts|0;
-   row.pts=v.pointsMode==='consecutiveWins'?row.best:(row.pts|0)+add;row.t=now;r.evPts[i]=Math.max(0,(row.pts|0)-before);if(s.name)j.name=clean(s.name,16);if(s.avatar)j.av=clean(s.avatar,30);counted++;
+   row.pts=v.pointsMode==='consecutiveWins'?row.best:(row.pts|0)+add;row.t=now;r.evPts[i]=Math.max(0,(row.pts|0)-before);if(s.name)j.name=clean(s.name,16);if(s.avatar)j.av=clean(s.avatar,30);if(s.avx)j.avx=clean(s.avx,30);else delete j.avx;counted++;
    // milestones
    v.milestones.forEach((m,mi)=>{if((row.ms||[]).includes(mi))return;const need=v.pointsMode==='consecutiveWins'?(m.wins!=null?m.wins:m.pts):m.pts;
     if(row.pts>=need){row.ms=row.ms||[];row.ms.push(mi);grant(s.pid,e,m.reward,m.level?('level '+m.level):('reached '+need+(v.pointsMode==='consecutiveWins'?' wins in a row':' points')))}})}}
@@ -128,7 +128,7 @@ function handle(req,res,u){
  J(res,404,{error:'unknown'});return true}
 // ---- WS: old evscore is ignored for v3 events; evlb for v3 events answers with server scores ----
 function handleWs(m,pid,send,ws){if(m.t==='evscore'&&byId(String(m.ev||'')))return true;
- if(m.t==='evlb'){const e=byId(String(m.ev||''));if(!e)return false;const b=board(e,pid,50);send(ws,{t:'evlb',ev:e.id,list:b.top.map(x=>({name:x.name,avatar:x.av,cc:x.cc,pts:x.pts,wins:x.wins,games:x.games})),rank:b.me?b.me.rank:0,total:b.total,v3:true});return true}
+ if(m.t==='evlb'){const e=byId(String(m.ev||''));if(!e)return false;const b=board(e,pid,50);send(ws,{t:'evlb',ev:e.id,list:b.top.map(x=>({name:x.name,avatar:x.av,avx:x.avx,cc:x.cc,pts:x.pts,wins:x.wins,games:x.games})),rank:b.me?b.me.rank:0,total:b.total,v3:true});return true}
  return false}
 let timer=null;
 // one-time: events imported earlier carry minPlayers 100; lower every not-yet-decided event to the current minimum (admin can still edit afterwards)

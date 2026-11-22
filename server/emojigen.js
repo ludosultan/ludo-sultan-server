@@ -15,16 +15,23 @@ const prompt=d=>`Turn the person in the photo into a cute cartoon emoji sticker:
 async function post(url,key,body,ms){const c=new AbortController(),t=setTimeout(()=>c.abort(),ms||90000);
  try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+key},body:JSON.stringify(body),signal:c.signal});
   const j=await r.json().catch(()=>null);if(!r.ok)throw new Error('backend '+r.status+(j&&j.error?': '+String(j.error.message||j.error).slice(0,120):''));return j}finally{clearTimeout(t)}}
-async function one(photos,s){const p=provider();
- if(p==='xai'){const j=await post('https://api.x.ai/v1/images/edits',process.env.XAI_API_KEY,{model:process.env.EMOJI_GEN_MODEL||'grok-imagine-image-2.0',prompt:prompt(s[1]),
+async function one(photos,s,opt){const p=provider();opt=opt||{};const pr=opt.prompt||prompt(s[1]);
+ if(p==='xai'){const j=await post('https://api.x.ai/v1/images/edits',process.env.XAI_API_KEY,{model:opt.model||process.env.EMOJI_GEN_MODEL||'grok-imagine-image-2.0',prompt:pr,
    image:{url:photos[0],type:'image_url'},response_format:'b64_json'});const d=j&&j.data&&j.data[0];
   if(d&&d.b64_json)return 'data:image/jpeg;base64,'+d.b64_json;
   if(d&&d.url){const r=await fetch(d.url);if(!r.ok)throw new Error('image fetch '+r.status);return 'data:'+(r.headers.get('content-type')||'image/jpeg')+';base64,'+Buffer.from(await r.arrayBuffer()).toString('base64')}
   throw new Error('no image')}
- if(p==='http'){const j=await post(process.env.EMOJI_GEN_URL,process.env.EMOJI_GEN_KEY,{photos,style:s[0],prompt:prompt(s[1])});if(j&&typeof j.image==='string'&&/^data:image\//.test(j.image))return j.image;throw new Error('no image')}
+ if(p==='http'){const j=await post(process.env.EMOJI_GEN_URL,process.env.EMOJI_GEN_KEY,{photos,style:s[0],prompt:pr});if(j&&typeof j.image==='string'&&/^data:image\//.test(j.image))return j.image;throw new Error('no image')}
  if(p==='mock')return photos[0];
  throw new Error('not configured')}
+// 3.15.6 Photo to cartoon (profile avatar): one image, cheapest model (grok-imagine-image, about $0.022 per cartoon). Override with AVATAR_GEN_MODEL.
+const AV_PROMPT='Turn the person in the photo into a cute 3D cartoon game avatar in a soft Pixar-like style, like a royal Ludo Sultan character. '+
+ 'Keep the face recognizable as the same person. Head and shoulders, centered, facing the viewer, big friendly eyes, warm smile. '+
+ 'Keep clothing modest; if the person wears a hijab, cap or turban keep it. Rich colors, soft studio lighting, plain dark background, no text, no frame.';
 module.exports={
+ AV_PROMPT,
+ // photo: one data URI. Resolves with one data URI.
+ async avatar(photo){return one([photo],['avatar',''],{prompt:AV_PROMPT,model:process.env.AVATAR_GEN_MODEL||'grok-imagine-image'})},
  STYLES:STYLES.map(s=>s[0]),provider,
  configured(){return !!provider()},
  // photos: data URIs (jpeg/png/webp). Resolves with N data URIs; fails if fewer than 4 came back (then nothing is charged).
