@@ -24,7 +24,7 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));async function until(f,ms=60000)
  w=await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'sync',seed:{c:1,g:1},n:1,dc:-5000,dg:-100});T('seed only once; spends apply',!w.j.seeded&&w.j.w.c===1e8-5000&&w.j.w.g===2e5-100);
  w=await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'sync',n:1,dc:-5000});T('repeated sync number ignored (no double spend)',w.j.dup&&w.j.w.c===1e8-5000);
  w=await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'sync',n:2,dg:800});T('phone earnings capped per day',w.j.applied.g===500&&w.j.capped.g===300);
- w=await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'iap',sku:'ls_gems_100',token:'tok-123456789'});T('store pack granted by server table',w.j.ok&&w.j.granted.g===300);
+ w=await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'iap',sku:'ls_gems_100',token:'tok-123456789'});T('store pack granted by server table',w.j.ok&&w.j.granted.g===200);
  w=await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'iap',sku:'ls_gems_100',token:'tok-123456789'});T('same purchase token granted once',w.j.dup);
  T('unknown sku refused',!(await P('/api/wallet',{pid:'wallet01',key:keys.wallet01,op:'iap',sku:'free_gems',token:'tok-999999999'})).j.ok);
  console.log('events v3');

@@ -9,7 +9,7 @@ const N=(v,d)=>{const x=+v;return Number.isFinite(x)?x:d};
 const CFG=()=>({seedCoins:N(process.env.WAL_SEED_COINS,1e8),seedGems:N(process.env.WAL_SEED_GEMS,2e5),
  dayCoins:N(process.env.WAL_DAY_COINS,5e8),dayGems:N(process.env.WAL_DAY_GEMS,5000),maxCoins:1e12,maxGems:1e9});
 // store packs (same as the app's PRODUCTS / legacy GEMPACKS + COINPACKS); amounts come from here, never from the app
-const SKUS={ls_gems_100:{g:300},ls_gems_500:{g:1700},ls_gems_1000:{g:3700},ls_gems_2500:{g:10000},ls_gems_5000:{g:21000},ls_gems_10000:{g:45000},
+const SKUS={ls_gems_100:{g:200},ls_gems_500:{g:1250},ls_gems_1000:{g:2750},ls_gems_2500:{g:6750},ls_gems_5000:{g:13500},ls_gems_10000:{g:29000},
  ls_coins_10k:{c:1e4},ls_coins_30k:{c:3e4},ls_coins_100k:{c:1e5},ls_coins_250k:{c:25e4},ls_coins_1m:{c:1e6},ls_coins_2m:{c:2e6},
  ls_starter_pack:{g:150,c:5000,once:true},gems_50:{g:50},gems_120:{g:120},gems_300:{g:300},gems_800:{g:800},coins_2000:{c:2000},coins_6000:{c:6000},coins_15000:{c:15000}};
 const dayKey=t=>new Date(t||Date.now()).toISOString().slice(0,10);
