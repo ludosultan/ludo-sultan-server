@@ -43,6 +43,16 @@ function iap(pid,sku,token){const p=SKUS[String(sku||'')];token=String(token||''
  let w=get(pid);if(!w)return {ok:false,error:'nowallet'};w.iap=w.iap||[];const h=require('crypto').createHash('sha256').update(token).digest('hex').slice(0,32);
  if(w.iap.includes(h))return {ok:true,dup:true,w:pub(w)};if(p.once&&w.starter)return {ok:true,dup:true,w:pub(w)};
  w.iap.push(h);if(w.iap.length>200)w.iap=w.iap.slice(-200);if(p.once)w.starter=1;credit(pid,p.c||0,p.g||0,'store '+sku);return {ok:true,granted:{c:p.c||0,g:p.g||0},w:pub(get(pid))}}
+// 7-day login bonus (same table as the 3.15 app D7). Claimed once per local day key; optional one-time double.
+const DAILY=[{c:5000},{c:7500},{c:10000,g:2},{c:15000},{c:20000,g:5},{c:30000},{c:50000,g:10}];
+function nearDay(k){k=String(k||'');if(!/^\d{4}-\d{1,2}-\d{1,2}$/.test(k))return false;const p=k.split('-').map(Number),ms=Date.UTC(p[0],p[1]-1,p[2]);if(!Number.isFinite(ms))return false;return Math.abs(Date.now()-ms)<36*3600*1000}
+function daily(pid,m){m=m||{};let w=get(pid);if(!w)return {ok:false,error:'nowallet'};
+ const day=Math.max(1,Math.min(7,Math.floor(N(m.day,1))));const k=String(m.dayKey||m.k||'').trim();const use=nearDay(k)?k:dayKey();
+ const row=DAILY[day-1]||DAILY[0];const dbl=!!m.double;w.daily=w.daily||{};
+ if(!dbl&&w.daily.k===use)return {ok:true,dup:true,granted:{c:0,g:0},w:pub(w)};
+ if(dbl&&(w.daily.k!==use||w.daily.dbl))return {ok:false,error:'nodouble',w:pub(w)};
+ const c=row.c|0,g=row.g|0;credit(pid,c,g,dbl?'daily-double '+day:'daily '+day+' '+use);w=get(pid);w.daily={k:use,n:day,dbl:dbl?1:(w.daily.dbl|0)};save();
+ return {ok:true,granted:{c,g},w:pub(w)}}
 // live LiveOps mail claim (also used for event rewards): credit wallets that exist
 function onMailClaim(pid,g){if(!g||!get(pid))return;const items=g.item&&g.item.id?[{id:g.item.id,n:g.item.n||1}]:[];credit(pid,g.coins|0,g.gems|0,'mail '+g.id,items)}
 // HTTP: POST /api/wallet {pid,key,op:'sync'|'iap'|'get', ...}  (device key from /api/hello)
@@ -51,6 +61,6 @@ function handle(req,res,u){if(u!=='/api/wallet')return false;res.setHeader('Acce
  if(req.method==='OPTIONS'){res.writeHead(204);res.end();return true}if(req.method!=='POST')return J(405,{error:'method'}),true;
  let b='';req.on('data',d=>{b+=d;if(b.length>8000)req.destroy()});req.on('end',()=>{let m;try{m=JSON.parse(b||'{}')}catch(e){return J(400,{error:'bad'})}
   const LO=require('./liveops.js');if(LO.limited(req,'wallet',90,60e3))return J(429,{error:'slow down'});const a=LO.authDev(m);if(!a)return J(401,{error:'key'});if(LO.banned(a.pid))return J(403,{error:'banned'});
-  try{if(m.op==='iap')return J(200,iap(a.pid,m.sku,m.token));if(m.op==='get')return J(200,{ok:true,w:pub(get(a.pid))});return J(200,sync(a.pid,m))}catch(e){console.error('wallet',e.message);J(500,{error:'server'})}});return true}
+  try{if(m.op==='iap')return J(200,iap(a.pid,m.sku,m.token));if(m.op==='daily')return J(200,daily(a.pid,m));if(m.op==='get')return J(200,{ok:true,w:pub(get(a.pid))});return J(200,sync(a.pid,m))}catch(e){console.error('wallet',e.message);J(500,{error:'server'})}});return true}
 function adminView(pid){const w=get(pid);return w?Object.assign(pub(w),{seed:w.seed,flag:w.flag|0,log:(w.log||[]).slice(-20).reverse(),day:w.day}):null}
-module.exports={handle,sync,credit,iap,get,pub,onMailClaim,adminView,SKUS,CFG,_all:all};
+module.exports={handle,sync,credit,iap,daily,get,pub,onMailClaim,adminView,SKUS,DAILY,CFG,_all:all};
