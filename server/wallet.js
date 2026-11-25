@@ -17,7 +17,8 @@ function all(){let d=store.get('wallet');if(!d||typeof d!=='object'){d={};store.
 function save(){store.set('wallet',all(),1000)}
 const get=pid=>{const d=store.get('wallet');return (d&&typeof d==='object'&&d[pid])||null};
 function log(w,op,c,g,why){w.log=w.log||[];w.log.push({t:Date.now(),op,c:c||0,g:g||0,why:String(why||'').slice(0,60)});if(w.log.length>40)w.log=w.log.slice(-40)}
-const pub=w=>w?{c:w.c,g:w.g,items:w.items||{},rev:w.rev|0,n:w.n|0,seeded:w.seeded||0}:null;
+// 3.15.9: daily = last claimed 7-day login bonus {k: phone day key, n: day 1-7}, so a reinstall can restore the streak
+const pub=w=>w?Object.assign({c:w.c,g:w.g,items:w.items||{},rev:w.rev|0,n:w.n|0,seeded:w.seeded||0},w.daily&&w.daily.k?{daily:{k:w.daily.k,n:w.daily.n|0}}:{}):null;
 function create(pid,seed){const C=CFG();const sc=Math.max(0,Math.floor(N(seed&&seed.c,0))),sg=Math.max(0,Math.floor(N(seed&&seed.g,0)));
  const w={c:Math.min(sc,C.seedCoins),g:Math.min(sg,C.seedGems),items:{},rev:1,n:0,seeded:Date.now(),seed:{c:sc,g:sg},day:{k:dayKey(),c:0,g:0},iap:[]};
  if(sc>C.seedCoins||sg>C.seedGems){w.flag=(w.flag|0)+1;console.log('[wallet] seed capped',pid.slice(0,8),'coins',sc,'->',w.c,'gems',sg,'->',w.g)}

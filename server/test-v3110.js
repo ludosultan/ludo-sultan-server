@@ -57,12 +57,13 @@ await wait(500);const raw=JSON.parse(fs.readFileSync(TMP+'/a.json','utf8'));ok(r
  S(E1,{t:'acc_social',provider:'google',token:'x.y.z'});await until(()=>E1.acc.length===5);ok(!lastAcc(E1).ok&&lastAcc(E1).code==='verify','fake google token rejected');
  S(E1,{t:'acc_social',provider:'facebook',token:'abc'});await until(()=>E1.acc.length===6);ok(!lastAcc(E1).ok&&/not configured/.test(lastAcc(E1).msg),'facebook not configured');
  // event leaderboard
- S(E1,{t:'evscore',ev:'fol26',pts:420,games:3,wins:2});S(A,{t:'evscore',ev:'fol26',pts:900,games:5,wins:4});await wait(150);S(E1,{t:'evlb',ev:'fol26'});await until(()=>E1.m.evlb);
+ S(E1,{t:'evscore',ev:'ftest',pts:420,games:3,wins:2});S(A,{t:'evscore',ev:'ftest',pts:900,games:5,wins:4});S(A,{t:'evscore',ev:'fol26',pts:99999,games:500,wins:500});await wait(150);S(E1,{t:'evlb',ev:'ftest'});await until(()=>E1.m.evlb);
  ok(E1.m.evlb.list.length===2&&E1.m.evlb.list[0].pts===900&&E1.m.evlb.rank===2,'event leaderboard');
+ E1.m.evlb=null;S(E1,{t:'evlb',ev:'fol26'});await until(()=>E1.m.evlb);ok(!E1.m.evlb.list.some(x=>x.pts>=99999),'Winter Cup ignores phone-reported points (online matches only, server scored)');
  // delete account (password required)
  S(E1,{t:'acc_delete',token:su.token,pass:'nope nope'});await until(()=>E1.acc.length===7);ok(lastAcc(E1).code==='wrong','delete needs password');
  S(E1,{t:'acc_delete',token:su.token,pass:'correct horse 1'});await until(()=>E1.m.accdeleted);
  S(E2,{t:'acc_resume',token:li.token});await until(()=>E2.acc.length===14);ok(!lastAcc(E2).ok,'sessions gone after delete');
  await wait(400);const raw2=JSON.parse(fs.readFileSync(TMP+'/a.json','utf8'));ok(raw2.length===0,'account row deleted');
- S(A,{t:'evlb',ev:'fol26'});A.m.evlb=null;await until(()=>A.m.evlb);ok(A.m.evlb.list.length===1,'deleted player removed from leaderboard');
+ S(A,{t:'evlb',ev:'ftest'});A.m.evlb=null;await until(()=>A.m.evlb);ok(A.m.evlb.list.length===1,'deleted player removed from leaderboard');
  console.log('v3110 tests passed:',n);srv.kill();process.exit(0)})().catch(e=>{console.error('FAIL',e.message);srv.kill();process.exit(1)});
