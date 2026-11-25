@@ -68,6 +68,13 @@ function betPay(r){if(!r.bet||!r.g)return;const order=(LG(r).standings(r.g)||[])
 // 3.8.0: quick-match fill players (after QUICK_MS with no real opponent) get normal names/avatars
 const FILLN=['Ali','Sana','Bilal','Ayesha','Hamza','Zara','Omar','Fatima','Usman','Hira','Daniel','Lucia','Marco','Sofia','Arjun','Priya','Yusuf','Mariam','Diego','Elena','Kemal','Aisha','Rafael','Noor'];
 const FILLA=['🦁','🐯','🦊','🐼','🐵','🐸','🐨','🦄','🐲','🦉','🐙','👳'];
+// 3.16: region-aware Quick Match. The phone sends a coarse region (from its time zone, e.g. 'SA', 'ME', 'EU').
+// Same-region rooms are preferred; a room that has waited REGION_WAIT ms takes anyone, so nobody waits longer.
+const REGION_WAIT=+process.env.REGION_WAIT||6000;
+function regOf(m){const r=String((m&&m.reg)||'').toUpperCase();return /^[A-Z]{2,3}$/.test(r)?r:''}
+function pickQuick(ok,reg){const list=[...rooms.values()].filter(ok);if(!list.length)return null;
+ const same=list.find(x=>reg&&x.reg===reg);if(same)return same;
+ const now=Date.now();return list.find(x=>!reg||!x.reg||now-(x.created||0)>=REGION_WAIT)||null}
 function qkey(size,mode,night,blockade){return size+'|'+mode+'|'+(night?1:0)+'|'+(blockade?1:0)}
 function code(){let c;do c=Math.random().toString(36).slice(2,7).toUpperCase();while(rooms.has(c));return c}
 function send(ws,m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m))}
@@ -165,12 +172,12 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
      if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}
      const k='ev|'+evId;let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.ev===evId&&x.qkey===k&&x.seats.length<x.size&&!x.seats.some(s=>s.pid===pid));
      if(!rr){rr=newRoom(2,{mode:'classic',three6:true},true);rr.qkey=k;rr.ev=evId}joinRoom(c,pid,rr);break}
-     if(mg.is(m.game)){const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k='mg|'+m.game+(bet?('|b'+bet):'');if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.mg===m.game&&x.qkey===k&&x.seats.length<x.size);if(!rr){rr=newRoom(mg.size(m.game),{game:m.game},true);rr.qkey=k;if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}// queue key = player count + mode + night mode + house rule (blockade) + bet; only same-key players share a room.
+     if(mg.is(m.game)){const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k='mg|'+m.game+(bet?('|b'+bet):'');if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}let rr=pickQuick(x=>x.public&&!x.started&&x.mg===m.game&&x.qkey===k&&x.seats.length<x.size,regOf(m));if(!rr){rr=newRoom(mg.size(m.game),{game:m.game},true);rr.qkey=k;rr.reg=regOf(m);if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}// queue key = player count + mode + night mode + house rule (blockade) + bet; only same-key players share a room.
      // 3.11.6: computer players fill empty seats after QUICK_MS (10 s) without enough real players
      const six=(m.size|0)===6;const md=six?'six':MODES.includes(m.mode)?m.mode:'classic';const sz=six?6:md==='team'?4:([2,3,4].includes(m.size|0)?(m.size|0):4);const nt=!!m.night,bl=!six&&!!m.blockade;
      const bet=BETS_OK.includes(+m.bet)?(+m.bet):0;const k=qkey(sz,md,nt,bl)+(bet?('|b'+bet):'');
      if(c.room){const cur=rooms.get(c.room);if(cur&&!cur.started)leaveRoom(pid)}
-     let rr=[...rooms.values()].find(x=>x.public&&!x.started&&x.qkey===k&&x.seats.length<x.size);if(!rr){rr=newRoom(sz,{mode:six?'classic':md,night:nt,blockade:bl,three6:true,six},true);rr.qkey=k;if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}
+     let rr=pickQuick(x=>x.public&&!x.started&&x.qkey===k&&x.seats.length<x.size,regOf(m));if(!rr){rr=newRoom(sz,{mode:six?'classic':md,night:nt,blockade:bl,three6:true,six},true);rr.qkey=k;rr.reg=regOf(m);if(bet)rr.bet=bet}else if(bet&&!rr.bet)rr.bet=bet;joinRoom(c,pid,rr);break}
    case 'start':if(r&&!r.started&&!r.ev&&r.host===pid&&!r.tour){if(r.mg){while(r.seats.length<r.size)addFill(r);startGame(r);break}while(r.seats.length<(r.opts.mode==='team'?4:2))addBot(r);startGame(r)}break;
    case 'addbot':if(r&&!r.started&&!r.ev&&r.host===pid&&r.seats.length<r.size){addBot(r);sendRoom(r);if(r.seats.length===r.size)startGame(r)}break;
    case 'roll':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}if(r&&r.started&&seatOf(r,pid)===r.g.turn)doRoll(r);break;
