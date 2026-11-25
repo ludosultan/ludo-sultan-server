@@ -10,5 +10,7 @@ store.init({
  loplayers:{file:process.env.LOP_FILE||path.join(__dirname,'data','loplayers.json'),def:{}},
  // 3.15: server wallet (one row per player) and events v3 scores/joins (one row per event)
  wallet:{file:process.env.WAL_FILE||path.join(__dirname,'data','wallet.json'),def:{},split:true},
- ev3:{file:process.env.EV3_FILE||path.join(__dirname,'data','ev3.json'),def:{},split:true}
+ ev3:{file:process.env.EV3_FILE||path.join(__dirname,'data','ev3.json'),def:{},split:true},
+ // iOS: Apple transactionId -> pid (each App Store purchase credited once, on one player)
+ iap_ios:{file:process.env.IAP_IOS_FILE||path.join(__dirname,'data','iap_ios.json'),def:{},split:true}
 }).then(()=>require('./app.js')).catch(e=>{console.error('FATAL: could not load data store:',e.message);process.exit(1)});

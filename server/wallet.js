@@ -4,7 +4,8 @@
 //   earnings from phone-side play are capped per UTC day. Big rewards (events, mail, store packs) are added by the server only.
 // - 3.14.x apps never create a wallet, so nothing changes for them.
 // Store key 'wallet' (one row per pid in Postgres).
-const store=require('./store.js');
+const store=require('./store.js');const APPLE=require('./apple.js');
+function iosIndex(){let d=store.get('iap_ios');if(!d||typeof d!=='object'){d={};store.set('iap_ios',d)}return d}
 const N=(v,d)=>{const x=+v;return Number.isFinite(x)?x:d};
 const CFG=()=>({seedCoins:N(process.env.WAL_SEED_COINS,1e8),seedGems:N(process.env.WAL_SEED_GEMS,2e5),
  dayCoins:N(process.env.WAL_DAY_COINS,5e8),dayGems:N(process.env.WAL_DAY_GEMS,5000),maxCoins:1e12,maxGems:1e9});
@@ -39,9 +40,15 @@ function sync(pid,m){m=m||{};let w=get(pid),seeded=false;if(!w){w=create(pid,m.s
  if(cap.c||cap.g){w.flag=(w.flag|0)+1;log(w,'capped',cap.c,cap.g,'daily earn cap')}
  if(dc||dg){log(w,'phone',dc,dg,'sync');w.rev=(w.rev|0)+1}if(n)w.n=n;save();
  return {ok:true,applied:{c:w.c-c0,g:w.g-g0},capped:cap,w:pub(w)}}
-// store purchase from Google Play: amounts from SKUS; one grant per purchase token
-function iap(pid,sku,token){const p=SKUS[String(sku||'')];token=String(token||'').slice(0,400);if(!p)return {ok:false,error:'sku'};if(token.length<8)return {ok:false,error:'token'};
- let w=get(pid);if(!w)return {ok:false,error:'nowallet'};w.iap=w.iap||[];const h=require('crypto').createHash('sha256').update(token).digest('hex').slice(0,32);
+// store purchase (Google Play token or Apple JWS): amounts from SKUS; one grant per purchase
+// iOS: token is the StoreKit 2 signed transaction (JWS). It is verified against Apple's root certificate and credited once
+// per Apple transactionId, on one player only (global index 'iap_ios': transactionId -> pid).
+function iap(pid,sku,token,opts){const p=SKUS[String(sku||'')];if(!p)return {ok:false,error:'sku'};
+ let key=null,ios=null;if(APPLE.isJws(token)){try{ios=APPLE.verifyTransaction(token,String(sku),opts&&opts.apple)}catch(e){console.log('[wallet] apple iap refused',String(pid).slice(0,8),sku,e.message);return {ok:false,error:'token',why:e.message}}
+  key='ios:'+ios.transactionId;const ix=iosIndex();if(ix[ios.transactionId]&&ix[ios.transactionId]!==pid)return {ok:false,error:'token',why:'used by another player'}}
+ else{token=String(token||'').slice(0,400);if(token.length<8)return {ok:false,error:'token'};key=token}
+ let w=get(pid);if(!w)return {ok:false,error:'nowallet'};w.iap=w.iap||[];const h=require('crypto').createHash('sha256').update(key).digest('hex').slice(0,32);
+ if(ios){const ix=iosIndex();if(!ix[ios.transactionId]){ix[ios.transactionId]=pid;store.set('iap_ios',ix,1000)}}
  if(w.iap.includes(h))return {ok:true,dup:true,w:pub(w)};if(p.once&&w.starter)return {ok:true,dup:true,w:pub(w)};
  w.iap.push(h);if(w.iap.length>200)w.iap=w.iap.slice(-200);if(p.once)w.starter=1;credit(pid,p.c||0,p.g||0,'store '+sku);return {ok:true,granted:{c:p.c||0,g:p.g||0},w:pub(get(pid))}}
 // 7-day login bonus (same table as the 3.15 app D7). Claimed once per local day key; optional one-time double.
@@ -60,7 +67,7 @@ function onMailClaim(pid,g){if(!g||!get(pid))return;const items=g.item&&g.item.i
 function handle(req,res,u){if(u!=='/api/wallet')return false;res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Headers','Content-Type');
  const J=(c,o)=>{res.writeHead(c,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(o))};
  if(req.method==='OPTIONS'){res.writeHead(204);res.end();return true}if(req.method!=='POST')return J(405,{error:'method'}),true;
- let b='';req.on('data',d=>{b+=d;if(b.length>8000)req.destroy()});req.on('end',()=>{let m;try{m=JSON.parse(b||'{}')}catch(e){return J(400,{error:'bad'})}
+ let b='';req.on('data',d=>{b+=d;if(b.length>24000)req.destroy()});req.on('end',()=>{let m;try{m=JSON.parse(b||'{}')}catch(e){return J(400,{error:'bad'})}
   const LO=require('./liveops.js');if(LO.limited(req,'wallet',90,60e3))return J(429,{error:'slow down'});const a=LO.authDev(m);if(!a)return J(401,{error:'key'});if(LO.banned(a.pid))return J(403,{error:'banned'});
   try{if(m.op==='iap')return J(200,iap(a.pid,m.sku,m.token));if(m.op==='daily')return J(200,daily(a.pid,m));if(m.op==='get')return J(200,{ok:true,w:pub(get(a.pid))});return J(200,sync(a.pid,m))}catch(e){console.error('wallet',e.message);J(500,{error:'server'})}});return true}
 function adminView(pid){const w=get(pid);return w?Object.assign(pub(w),{seed:w.seed,flag:w.flag|0,log:(w.log||[]).slice(-20).reverse(),day:w.day}):null}

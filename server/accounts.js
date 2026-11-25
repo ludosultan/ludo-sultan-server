@@ -1,7 +1,7 @@
 // 3.11.0 accounts: email + password (scrypt, Node built-in), Google / Facebook sign-in (tokens verified on the server),
 // session tokens (only their SHA-256 is stored), guest linking (an account owns the device pid it was created on) and a
 // cloud copy of the player's save. Postgres table ls_accounts when DATABASE_URL is set, JSON file otherwise.
-const crypto=require('crypto'),fs=require('fs'),path=require('path');const store=require('./store.js');
+const crypto=require('crypto'),fs=require('fs'),path=require('path');const store=require('./store.js');const APPLE=require('./apple.js');
 const FILE=process.env.ACC_FILE||path.join(__dirname,'data','accounts.json');
 const TBL=/^[a-z_]{1,40}$/.test(process.env.ACC_TABLE||'')?process.env.ACC_TABLE:'ls_accounts';
 const SAVE_MAX=+process.env.SAVE_MAX||400000,SESS_DAYS=180,MAX_SESS=10;
@@ -32,9 +32,9 @@ async function verifyFacebook(tok){const id=FB_ID();if(!id)throw new Error('face
  const r=await fetch(`${GRAPH}/me?fields=id,name,email,picture.type(large)&access_token=${encodeURIComponent(tok)}`);const me=await r.json();if(!me||!me.id)throw new Error('facebook profile failed');
  if(uid&&String(me.id)!==uid)throw new Error('user mismatch');return {sub:String(me.id),email:String(me.email||'').toLowerCase(),name:String(me.name||'').slice(0,30),photo:me.picture&&me.picture.data&&me.picture.data.url||''}}
 module.exports=function(ctx){const {send,social}=ctx;
- const A=new Map(),byEmail=new Map(),byG=new Map(),byF=new Map(),bySess=new Map();let ready=null;
- function index(a){if(a.email&&a.hash)byEmail.set(a.email,a.id);if(a.g)byG.set(a.g,a.id);if(a.f)byF.set(a.f,a.id);(a.sess||[]).forEach(s=>bySess.set(s.h,a.id))}
- function unindex(a){if(a.email&&byEmail.get(a.email)===a.id)byEmail.delete(a.email);if(a.g)byG.delete(a.g);if(a.f)byF.delete(a.f);(a.sess||[]).forEach(s=>bySess.delete(s.h))}
+ const A=new Map(),byEmail=new Map(),byG=new Map(),byF=new Map(),byAp=new Map(),bySess=new Map();let ready=null;
+ function index(a){if(a.email&&a.hash)byEmail.set(a.email,a.id);if(a.g)byG.set(a.g,a.id);if(a.f)byF.set(a.f,a.id);if(a.ap)byAp.set(a.ap,a.id);(a.sess||[]).forEach(s=>bySess.set(s.h,a.id))}
+ function unindex(a){if(a.email&&byEmail.get(a.email)===a.id)byEmail.delete(a.email);if(a.g)byG.delete(a.g);if(a.f)byF.delete(a.f);if(a.ap)byAp.delete(a.ap);(a.sess||[]).forEach(s=>bySess.delete(s.h))}
  async function load(){if(store.pg){await store.query(`CREATE TABLE IF NOT EXISTS ${TBL}(id text PRIMARY KEY, email text UNIQUE, v jsonb NOT NULL, save jsonb, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now())`);
    const {rows}=await store.query(`SELECT id,v,save FROM ${TBL}`);rows.forEach(r=>{const a=Object.assign({},r.v,{id:r.id,save:r.save||null});A.set(a.id,a);index(a)})}
   else{try{JSON.parse(fs.readFileSync(FILE,'utf8')).forEach(a=>{A.set(a.id,a);index(a)})}catch(e){}}}
@@ -54,16 +54,18 @@ module.exports=function(ctx){const {send,social}=ctx;
  setInterval(()=>{const now=Date.now();for(const [k,f] of fails)if(now-f.t>15*60e3)fails.delete(k)},60e3).unref();
  const ok=(ws,a,tok,extra)=>send(ws,Object.assign({t:'acc',ok:true,acct:info(a),pid:a.pid,token:tok||undefined},extra||{}));
  const err=(ws,code,msg,req)=>send(ws,{t:'acc',ok:false,code,msg,req});
- async function socialLogin(m,pid,c,ws){const prov=m.provider==='facebook'?'facebook':m.provider==='google'?'google':null;if(!prov)return err(ws,'bad','Unknown provider');
-  let p;try{p=prov==='google'?await verifyGoogle(m.token):await verifyFacebook(m.token)}catch(e){return err(ws,'verify',String(e.message||e).slice(0,80),'social')}
-  const k=prov==='google'?'g':'f',idx=prov==='google'?byG:byF;let a=A.get(idx.get(p.sub));let created=false;
+ async function socialLogin(m,pid,c,ws){const prov=['facebook','google','apple'].includes(m.provider)?m.provider:null;if(!prov)return err(ws,'bad','Unknown provider');
+  let p;try{p=prov==='google'?await verifyGoogle(m.token):prov==='apple'?await APPLE.verifyAppleId(m.token,m.nonce,ctx.appleKeys):await verifyFacebook(m.token)}catch(e){return err(ws,'verify',String(e.message||e).slice(0,80),'social')}
+  // Sign in with Apple sends the name only on the first login (from the app, not inside the token)
+  if(prov==='apple'&&m.name)p.name=String(m.name).slice(0,30);
+  const k=prov==='google'?'g':prov==='apple'?'ap':'f',idx=prov==='google'?byG:prov==='apple'?byAp:byF;let a=A.get(idx.get(p.sub));let created=false;
   if(!a){a={id:'a_'+crypto.randomUUID(),prov,[k]:p.sub,email:p.email,name:p.name||c.name,photo:p.photo,pid,created:Date.now(),sess:[]};A.set(a.id,a);index(a);created=true}
   else{a.photo=p.photo||a.photo;if(p.email)a.email=a.email||p.email}
   const tok=newSession(a);await put(a);c.acct=a.id;ok(ws,a,tok,{created,req:'social'})}
  function handle(m,pid,c,ws){if(!/^acc_[a-z]+$/.test(String(m.t)))return false;run(m,pid,c,ws).catch(e=>{console.error('acc',m.t,e.message);err(ws,'server','Server error — try again')});return true}
  async function run(m,pid,c,ws){await ensureLoaded();
   {switch(m.t){
-  case 'acc_cfg':send(ws,{t:'acccfg',google:GOOGLE_IDS().length>0,facebook:!!FB_ID()});break;
+  case 'acc_cfg':send(ws,{t:'acccfg',google:GOOGLE_IDS().length>0,facebook:!!FB_ID(),apple:true});break;
   case 'acc_signup':{const email=String(m.email||'').trim().toLowerCase(),pw=String(m.pass||''),name=social.cleanName?social.cleanName(m.name):String(m.name||'').slice(0,16);
    if(!EMAIL_RE.test(email))return err(ws,'email','Please enter a valid email','signup'),true;if(pw.length<8||pw.length>128)return err(ws,'pass','Password must be at least 8 characters','signup'),true;
    if(byEmail.has(email))return err(ws,'exists','An account with this email already exists, log in instead','signup'),true;
