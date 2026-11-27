@@ -60,7 +60,7 @@ const BOTN=['Bot Leo','Bot Mia','Bot Kai','Bot Zed'];
 const BETS30=[500,1000,2500,5000,10000,50000,100000,250000,500000,1e6,5e6,1e7,2e7,4e7,8e7,1e8,2.5e8,5e8,1e9];
 const BETS_OK=BETS30.concat([2.5e7]); // legacy 3.11 table still accepted (25M)
 const W30={2:[2],3:[2,1],4:[3,1],5:[3,2],6:[4,2]};
-function betPay(r){if(!r.bet||!r.g)return;const order=(LG(r).standings(r.g)||[]);const n=r.size;const team=r.opts&&r.opts.mode==='team';
+function betPay(r){if(!r.bet||!r.g)return;const order=ordr(r);const n=r.size;const team=r.opts&&r.opts.mode==='team';
  const pay={};order.forEach(pi=>pay[pi]=0);
  if(team){const wt=order[0]%2;const ws=order.filter(pi=>pi%2===wt);const each=Math.floor(r.bet*n/ws.length);ws.forEach(pi=>pay[pi]=each)}
  else (W30[n]||[n]).forEach((w,k)=>{if(order[k]!=null)pay[order[k]]=r.bet*w});
@@ -80,7 +80,7 @@ function code(){let c;do c=Math.random().toString(36).slice(2,7).toUpperCase();w
 function send(ws,m){if(ws&&ws.readyState===1)ws.send(JSON.stringify(m))}
 function bc(r,m){r.seats.forEach(s=>{if(s.pid&&clients.get(s.pid)&&clients.get(s.pid).room===r.code)send(clients.get(s.pid).ws,m)})}
 function roomInfo(r){return {t:'room',code:r.code,game:r.mg||undefined,mg:r.mg||undefined,six:!!r.six,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null,public:r.public,ev:r.ev||undefined,size:r.size,host:r.host,started:r.started,opts:r.opts,bet:r.bet||0,fillIn:r.fillAt&&!r.started?Math.max(0,r.fillAt-Date.now()):null,
- players:r.seats.map(s=>({fid:s.pid?fidOf(s.pid):null,name:s.name,avatar:s.avatar,avx:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).avx)||s.avx||undefined,tok:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).tok)||s.tok||null,dice:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).dice)||s.dice||null,bot:!!s.bot&&!s.fill,online:s.bot||!!(s.pid&&clients.get(s.pid)&&clients.get(s.pid).ws&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws.readyState===1)}))}}
+ players:r.seats.map(s=>({fid:s.pid?fidOf(s.pid):null,name:s.name,avatar:s.avatar,avx:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).avx)||s.avx||undefined,tok:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).tok)||s.tok||null,dice:(s.pid&&clients.get(s.pid)&&clients.get(s.pid).dice)||s.dice||null,bot:!!s.bot&&!s.fill,left:!!s.left||undefined,online:s.bot||!!(s.pid&&clients.get(s.pid)&&clients.get(s.pid).ws&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws.readyState===1)}))}}
 function sendRoom(r){r.seats.forEach((s,i)=>{const c=s.pid&&clients.get(s.pid);if(c&&c.room===r.code)send(c.ws,{...roomInfo(r),you:i})})}
 function stateMsg(r){return {t:'state',six:!!r.six,g:r.g,phase:r.phase,dice:r.dice,moves:r.moves,deadline:r.deadline,left:Math.max(0,r.deadline-Date.now()),turnMs:TURN_MS,colors:r.colors}}
 const MODES=['classic','quick','team','arrow','blitz','kill'];
@@ -97,16 +97,28 @@ function evArm(r){if(r.started||r.qt||!r.seats.some(s=>s.pid))return;r.fillAt=Da
  r.qt=setTimeout(()=>{r.qt=null;r.fillAt=null;if(r.started||!r.seats.some(s=>s.pid))return;r.seats.forEach(s=>{const c=s.pid&&clients.get(s.pid);if(c&&c.room===r.code)send(c.ws,{t:'evNoOpp',ev:r.ev,code:r.code})});sendRoom(r)},EV_WAIT_MS)}
 function addFill(r){const used=new Set(r.seats.map(s=>s.name));const pool=FILLN.filter(n=>!used.has(n));const name=pool.length?pool[crypto.randomInt(pool.length)]:'Player'+(100+crypto.randomInt(900));r.seats.push({bot:true,fill:true,name,avatar:FILLA[crypto.randomInt(FILLA.length)]})}
 function addBot(r){const k=r.seats.length;r.seats.push({bot:true,name:BOTN[k%4],avatar:'🤖'})}
-function leaveRoom(pid){const c=clients.get(pid);if(!c||!c.room)return;const r=rooms.get(c.room);c.room=null;if(!r)return;
+function leaveRoom(pid,explicit){const c=clients.get(pid);if(!c||!c.room)return;const r=rooms.get(c.room);c.room=null;if(!r)return;
  if(!r.started){r.seats=r.seats.filter(s=>s.pid!==pid);if(r.host===pid)r.host=(r.seats.find(s=>s.pid)||{}).pid||null;if(!r.seats.length){clearTimeout(r.qt);rooms.delete(r.code)}else sendRoom(r)}
- else{const s=r.seats.find(s=>s.pid===pid);if(s){s.bot=true;s.name+=' (left)';s.pid=null}sendRoom(r);schedule(r);cleanup(r)}}
+ else{const i=r.seats.findIndex(s=>s.pid===pid),s=r.seats[i];if(s){s.bot=true;s.name+=' (left)';s.pid=null;
+   // 3.16.1: an explicit Leave (not a dropped connection / minimised app) takes the player out of the match: no computer plays for them,
+   // their pawns go back to base, their turns are skipped, they rank last, and the match ends when fewer than 2 seats are still playing.
+   if(explicit&&r.g&&!r.mg&&r.phase!=='over'){s.left=true;(r.leftOrder=r.leftOrder||[]).push(i);
+    if(leftSkips(r)){try{r.g.tokens[i]=r.g.tokens[i].map(()=>-1)}catch(e){}sendRoom(r);
+     if(leftEnd(r)){clearTimeout(r.timer);finishGame(r,0);cleanup(r);return}
+     if(r.g.turn===i&&(r.phase==='roll'||r.phase==='move')){clearTimeout(r.timer);r.g.bonus=0;r.g.queue=[];r.rerollOpen=false;endTurn(r)}else bc(r,stateMsg(r));cleanup(r);return}}}
+  sendRoom(r);schedule(r);cleanup(r)}}
+// explicit leavers (3.16.1): skipped in solo Ludo (2-6 players); team games keep the computer playing for the partner's sake
+const leftSkips=r=>!!(r&&r.g&&!r.mg&&!(r.opts&&r.opts.mode==='team')&&!(r.six&&r.g.team));
+const isLeft=(r,i)=>!!(r.seats[i]&&r.seats[i].left);
+function leftEnd(r){if(!leftSkips(r)||!r.seats.some(s=>s.left))return false;const rk=r.g.rank||[];return r.seats.filter((s,i)=>!s.left&&!rk.includes(i)).length<=1}
+function ordr(r){const o=LG(r).standings(r.g)||[];if(!leftSkips(r)||!r.seats.some(s=>s.left))return o;const lo=(r.leftOrder||[]).slice().reverse();return o.filter(i=>!isLeft(r,i)).concat(lo.filter(i=>o.includes(i)))}
 function cleanup(r){if(r.seats.every(s=>!s.pid)){clearTimeout(r.timer);rooms.delete(r.code)}}
 function startGame(r){LO.stat('matches');if(r.mg)return mg.startGame(r);clearTimeout(r.qt);r.size=r.seats.length;r.started=true;r.startedAt=Date.now();r.caps=r.seats.map(()=>0);r.g=LG(r).newGame(r);r.colors=r.six?r.g.players.slice():SEATS[r.size];r.rerolls=r.seats.map(()=>0);try{social.onGameStart(r)}catch(e){}r.g.turn=0;sendRoom(r);beginTurn(r)}
 function isAuto(r,i){const s=r.seats[i];if(s.bot)return BOT_MS;const c=clients.get(s.pid);if(!c||c.room!==r.code||!c.ws||c.ws.readyState!==1)return OFFLINE_MS;if(c.away)return Math.min(OFFLINE_MS,1500);return 0}
 function schedule(r,extraDelay=0){if(r.mg)return mg.schedule(r,extraDelay);if(!r.started||(r.phase!=='roll'&&r.phase!=='move'))return;clearTimeout(r.timer);const a=isAuto(r,r.g.turn);
  const ms=a?a+extraDelay:Math.max(0,r.deadline-Date.now())+extraDelay;r.timer=setTimeout(()=>autoAct(r),ms)}
 function autoAct(r){if(r.phase==='roll')doRoll(r);else if(r.phase==='move'){const ch=LG(r).ai(r.g,r.g.turn);if(ch)doMove(r,ch);else endTurn(r)}}
-function beginTurn(r,delay=0,keep=false){if(!keep){r.g.queue=[];r.rerollOpen=false}r.phase='roll';r.dice=0;r.moves=[];r.deadline=Date.now()+TURN_MS+delay;bc(r,stateMsg(r));schedule(r,delay)}
+function beginTurn(r,delay=0,keep=false){if(leftSkips(r)&&r.seats.some(x=>x.left)){if(leftEnd(r)){finishGame(r,0);return}if(isLeft(r,r.g.turn)){r.g.bonus=0;r.g.queue=[];r.rerollOpen=false;endTurn(r);return}}if(!keep){r.g.queue=[];r.rerollOpen=false}r.phase='roll';r.dice=0;r.moves=[];r.deadline=Date.now()+TURN_MS+delay;bc(r,stateMsg(r));schedule(r,delay)}
 function endTurn(r){r.rerollOpen=false;if(r.rerolls)r.rerolls=r.rerolls.map(()=>0);LG(r).endDice(r.g);if(LG(r).over(r.g)){finishGame(r,0);return}beginTurn(r)}
 const REROLL_WIN=+process.env.REROLL_WIN||2600;
 function canAfford(r,pi){if(r.six)return false;const s=r.seats[pi];const c=s&&!s.bot&&clients.get(s.pid);return c&&c.diamonds>=L.rerollCost((r.rerolls||[])[pi]|0)}
@@ -129,7 +141,7 @@ function doMove(r,o){if(r.phase!=='move')return false;const pi=r.g.turn,A=LG(r);
  const os=res.done&&!r.six?[]:A.options(r.g,pi);
  if(os.length){r.timer=setTimeout(()=>{r.phase='move';r.moves=os;r.dice=0;r.deadline=Date.now()+TURN_MS;bc(r,stateMsg(r));schedule(r,300)},anim);return true}
  r.timer=setTimeout(()=>endTurn(r),anim);return true}
-function finishGame(r,delay){try{betPay(r)}catch(e){}r.phase='over';clearTimeout(r.timer);const order=LG(r).standings(r.g);r.overRank=order;try{EV3.onMatchOver(r,order)}catch(e){console.error('ev3',e.message)}try{social.onMatchOver(r,order)}catch(e){console.error('fol',e.message)}r.timer=setTimeout(()=>{r.overTo=new Set(r.seats.filter(s=>s.pid&&clients.get(s.pid)&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws&&clients.get(s.pid).ws.readyState===1).map(s=>s.pid));bc(r,{t:'over',gid:gidOf(r),six:!!r.six,rank:order,mode:r.opts.mode,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null,evPts:r.ev?{id:r.ev,p:r.evPts||r.seats.map(()=>0),practice:!!r.practice}:undefined});try{tour.onOver(r,order)}catch(e){console.error('tour',e.message)}},delay)}
+function finishGame(r,delay){try{betPay(r)}catch(e){}r.phase='over';clearTimeout(r.timer);const order=ordr(r);r.overRank=order;try{EV3.onMatchOver(r,order)}catch(e){console.error('ev3',e.message)}try{social.onMatchOver(r,order)}catch(e){console.error('fol',e.message)}r.timer=setTimeout(()=>{r.overTo=new Set(r.seats.filter(s=>s.pid&&clients.get(s.pid)&&clients.get(s.pid).room===r.code&&clients.get(s.pid).ws&&clients.get(s.pid).ws.readyState===1).map(s=>s.pid));bc(r,{t:'over',gid:gidOf(r),six:!!r.six,rank:order,mode:r.opts.mode,tour:r.tour?{id:r.tour.id,round:r.tour.round}:null,evPts:r.ev?{id:r.ev,p:r.evPts||r.seats.map(()=>0),practice:!!r.practice}:undefined});try{tour.onOver(r,order)}catch(e){console.error('tour',e.message)}},delay)}
 // a client that was offline when the game ended still gets the result (once). 3.15.9: a player who already got the result
 // (and e.g. force-stopped the app afterwards) is taken out of the finished room on reconnect instead of getting it again.
 const gidOf=r=>r.code+'.'+(r.startedAt||0);
@@ -159,7 +171,8 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    c.name=String(m.name||'Player').slice(0,16);c.avatar=(a=>/^av:[a-z0-9_]{1,24}$/i.test(a)?a:a.slice(0,4))(String(m.avatar||'🦁'));c.avx=AVX.clean(m.avx);
    c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r&&!r.mg&&seenOver(r,pid)){leaveRoom(pid)}else if(r){sendRoom(r);if(r.started){if(r.mg){mg.onJoinStarted(r,c);mg.schedule(r)}else{send(ws,stateMsg(r));schedule(r);resendOver(r,ws,pid)}}}return}
   if(!pid)return;const c=clients.get(pid);const r=c.room&&rooms.get(c.room);
-  if(m.t==='caps'){c.cb=!!m.bet;return} // 3.14.4: client understands coin entry at friend / private Ludo tables
+  if(m.t==='caps'){c.cb=!!m.bet;return}
+  if(m.t==='vdiag'){const now=Date.now();if(now-(c.vdW||0)>10000){c.vdW=now;c.vdN=0}if(++c.vdN>6)return;try{const d=JSON.stringify(m.d||{}).replace(/(\d{1,3}\.){3}\d{1,3}/g,'x').slice(0,600);console.log('vdiag',c.fid,c.room||'-',d)}catch(e){}return} // 3.16.1 voice diagnostics (no addresses) // 3.14.4: client understands coin entry at friend / private Ludo tables
   if(m.t==='ice'){turn.iceFor(pid).then(ice=>{try{send(ws,{t:'ice',servers:ice||[],ttl:turn.TTL})}catch(e){}});return}
   if(m.t==='skin'){const ok=v=>typeof v==='string'&&/^[a-z0-9]{1,16}$/.test(v)?v:'classic';c.tok=ok(m.tok);c.dice=ok(m.dice);try{social.setSkin(pid,c)}catch(e){}
    if(r)sendRoom(r);return}
@@ -206,7 +219,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    case 'lbmy':send(ws,{t:'lbmy',ranks:lbg.ranksFor([...LB.values()],pid)});break;
    case 'evwait':if(r&&r.ev&&!r.started&&seatOf(r,pid)>=0)evArm(r);break;
    case 'evpractice':if(r&&r.ev&&!r.started&&seatOf(r,pid)>=0){clearTimeout(r.qt);r.qt=null;r.practice=true;while(r.seats.length<r.size)addFill(r);startGame(r)}break;
-   case 'leave':leaveRoom(pid);send(ws,{t:'left'});break;
+   case 'leave':leaveRoom(pid,true);send(ws,{t:'left'});break;
    case 'mg':case 'mgact':case 'mgsync':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}send(ws,{t:'mgerr',msg:'not in a mini-game'});break;
    default:if((m.t==='evscore'||m.t==='evlb')&&EV3.handleWs(m,pid,send,ws))break;if(r&&r.mg&&mg.handle(m,pid,c,ws,r))break;if(tour.handle(m,pid,c,ws))break;if(accounts.handle(m,pid,c,ws))break;social.handle(m,pid,c,ws);
   }});
