@@ -172,7 +172,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
    c.diamonds=Math.max(0,Math.min(100000,(m.diamonds|0)||0));c.fid=fidOf(pid);fids.set(c.fid,pid);send(ws,{t:'welcome',pid,fid:c.fid});social.onHello(pid,c,m);const r=c.room&&rooms.get(c.room);if(r&&!r.mg&&seenOver(r,pid)){leaveRoom(pid)}else if(r){sendRoom(r);if(r.started){if(r.mg){mg.onJoinStarted(r,c);mg.schedule(r)}else{send(ws,stateMsg(r));schedule(r);resendOver(r,ws,pid)}}}return}
   if(!pid)return;const c=clients.get(pid);const r=c.room&&rooms.get(c.room);
   if(m.t==='caps'){c.cb=!!m.bet;return}
-  if(m.t==='vdiag'){const now=Date.now();if(now-(c.vdW||0)>10000){c.vdW=now;c.vdN=0}if(++c.vdN>6)return;try{const d=JSON.stringify(m.d||{}).replace(/(\d{1,3}\.){3}\d{1,3}/g,'x').slice(0,600);console.log('vdiag',c.fid,c.room||'-',d)}catch(e){}return} // 3.16.1 voice diagnostics (no addresses) // 3.14.4: client understands coin entry at friend / private Ludo tables
+  if(m.t==='vdiag'){const now=Date.now();if(now-(c.vdW||0)>10000){c.vdW=now;c.vdN=0}if(++c.vdN>6)return;try{const d=JSON.stringify(m.d||{}).replace(/(\d{1,3}\.){3}\d{1,3}/g,'x').slice(0,1400);console.log('vdiag',c.fid,c.room||'-',d)}catch(e){}return} // 3.16.1 voice diagnostics (no addresses) // 3.14.4: client understands coin entry at friend / private Ludo tables
   if(m.t==='ice'){turn.iceFor(pid).then(ice=>{try{send(ws,{t:'ice',servers:ice||[],ttl:turn.TTL})}catch(e){}});return}
   if(m.t==='skin'){const ok=v=>typeof v==='string'&&/^[a-z0-9]{1,16}$/.test(v)?v:'classic';c.tok=ok(m.tok);c.dice=ok(m.dice);try{social.setSkin(pid,c)}catch(e){}
    if(r)sendRoom(r);return}
