@@ -20,9 +20,30 @@ function ci(c){return typeof c==='string'?COLORS.indexOf(c):c;}
 function trackIdx(c,p){return (START[ci(c)]+p)%52;}
 function cellOf(c,p,i){c=ci(c);if(p<0)return BASE[c][i];if(p<=50)return TRACK[trackIdx(c,p)];if(p<56)return HOMECOL[c][p-51];return CENTER[c];}
 function canMove(p,d){if(p===56)return false;if(p<0)return d===6;return p+d<=56;}
+// ---- 3.17 House Rules: g.opts.rules (absent = classic defaults, so old games and old servers behave exactly as before) ----
+const RULE_DEF={unlock:'6',six:true,three6:true,capBonus:true,homeBonus:true,safePair:false,stars:true,mustCap:false,exact:true,startOut:false,reroll:true,turnSec:10};
+const RULE_KEYS=Object.keys(RULE_DEF),UNLOCKS=['6','16','any'],TURN_SECS=[10,15,20,30];
+function normRules(r){if(!r||typeof r!=='object')return null;const o={};let diff=false;for(const k of RULE_KEYS){let v=r[k];const d=RULE_DEF[k];
+  if(k==='unlock')v=UNLOCKS.includes(String(v))?String(v):d;else if(k==='turnSec')v=TURN_SECS.includes(+v)?+v:d;else v=typeof v==='boolean'?v:d;
+  o[k]=v;if(v!==d)diff=true}return diff?o:null}
+function R(g){return (g&&g.opts&&g.opts.rules)||RULE_DEF}
+function isSafe(g,t){if(!SAFE.has(t))return false;return R(g).stars!==false||START.includes(t)}
+function gateShut(g,pi,p,d){return !!(R(g).mustCap&&p>=0&&p<=50&&p+d>50&&!(g.capd&&g.capd[pi])&&g.players.some((_,oj)=>!ally(g,pi,oj)&&g.tokens[oj].some(op=>op>=0&&op<=50)))}
+// Capture first to enter home: the home gate opens after a capture, when no rival pawn is out, or when no other move is possible (no deadlocks)
+function canMoveG(g,pi,p,d,noGate){const r=R(g);if(p===56)return false;
+ if(p<0)return r.unlock==='any'?true:r.unlock==='16'?(d===6||d===1):d===6;
+ if(!noGate&&gateShut(g,pi,p,d))return false;
+ return r.exact===false?true:p+d<=56;}
+// opponent tokens at track idx t that a pawn of pi landing there would send home (honours safe squares, Safe Pairs and shields)
+function victims(g,pi,t){const out=[];if(isSafe(g,t))return out;const sp=R(g).safePair;g.players.forEach((oc,oj)=>{if(ally(g,pi,oj))return;const here=[];g.tokens[oj].forEach((op,ok)=>{if(op>=0&&op<=50&&trackIdx(oc,op)===t)here.push(ok)});
+  if(sp&&here.length>=2)return;here.forEach(ok=>out.push([oj,ok]))});return out}
+// fair dice: uniform 1..6 from a crypto source (rejection sampling, no modulo bias); Math.random only if no crypto exists
+function rollDie(){try{if(typeof crypto!=='undefined'&&crypto.getRandomValues){const a=new Uint8Array(1);for(;;){crypto.getRandomValues(a);if(a[0]<252)return 1+a[0]%6}}}catch(e){}
+ try{if(typeof require==='function'){const c=require('crypto');if(c.randomInt)return 1+c.randomInt(6)}}catch(e){}return 1+Math.floor(Math.random()*6)}
 function newGame(players,opts){const o=Object.assign({blockade:false,three6:true,mode:'classic'},opts||{});o.three6=true;// 3.7.1: three consecutive 6s burn the turn in every mode
 if(o.mode==='team'&&players.length!==4)o.mode='classic';
- return {players,tokens:players.map(()=>o.mode==='quick'||o.mode==='blitz'?[0,-1,-1,-1]:[-1,-1,-1,-1]),turn:0,rank:[],opts:o,sixes:0,
+ {const nr=normRules(o.rules);if(nr)o.rules=nr;else delete o.rules}
+ return {players,tokens:players.map(()=>o.mode==='quick'||o.mode==='blitz'||(o.rules&&o.rules.startOut)?[0,-1,-1,-1]:[-1,-1,-1,-1]),turn:0,rank:[],opts:o,sixes:0,
   ...(o.mode==='blitz'?{score:players.map(()=>0),turnsLeft:players.length*(o.blitzTurns||BLITZ_TURNS)}:{})};}
 function isTeam(g){return !!(g.opts&&g.opts.mode==='team'&&g.players.length===4);}
 function ally(g,a,b){return a===b||(isTeam(g)&&(a+2)%4===b);}
@@ -30,19 +51,21 @@ function target(g){return g.opts&&g.opts.mode==='quick'?2:4;}
 function homeCount(g,pi){return g.tokens[pi].filter(x=>x===56).length;}
 function blockAt(g,pi,t){// opponent with >=2 tokens on track idx t
  for(let oj=0;oj<g.players.length;oj++){if(ally(g,pi,oj))continue;let n=0;for(const op of g.tokens[oj])if(op>=0&&op<=50&&trackIdx(g.players[oj],op)===t)n++;if(n>=2)return true;}return false;}
-function legal(g,pi,ti,d){const p=g.tokens[pi][ti];if(!canMove(p,d))return false;if(!g.opts||!g.opts.blockade)return true;const c=g.players[pi];
+function legal(g,pi,ti,d){const p=g.tokens[pi][ti];if(!canMoveG(g,pi,p,d,true)||!pathFree(g,pi,p,d))return false;
+ if(gateShut(g,pi,p,d))return !g.tokens[pi].some((pj,tj)=>tj!==ti&&canMoveG(g,pi,pj,d)&&pathFree(g,pi,pj,d));return true;}
+function pathFree(g,pi,p,d){if(!g.opts||!g.opts.blockade)return true;const c=g.players[pi];
  const from=p<0?0:p+1,to=p<0?0:p+d;for(let q=from;q<=Math.min(to,50);q++)if(blockAt(g,pi,trackIdx(c,q)))return false;return true;}
 function movable(g,pi,d){return g.tokens[pi].map((p,i)=>legal(g,pi,i,d)?i:-1).filter(i=>i>=0);}
 // call after a roll: returns {forfeit,moves}
 const REROLL_COSTS=[3,6,10,15,25,40,60,80,100,130,160,200,250];function rerollCost(n){return REROLL_COSTS[Math.min(Math.max(n|0,0),REROLL_COSTS.length-1)]}
 function spendReroll(bal,n){const c=rerollCost(n);if(!(bal>=c))return null;return {cost:c,bal:bal-c,n:n+1}}
-function onRoll(g,d){if(d===6)g.sixes=(g.sixes||0)+1;else g.sixes=0;if(g.sixes>=3){return {forfeit:true,moves:[]};}return {forfeit:false,moves:movable(g,g.turn,d)};}
+function onRoll(g,d){if(d===6)g.sixes=(g.sixes||0)+1;else g.sixes=0;if(g.sixes>=3&&R(g).three6!==false&&R(g).six!==false){return {forfeit:true,moves:[]};}return {forfeit:false,moves:movable(g,g.turn,d)};}
 // call after turn action: extra=bool from applyMove (false if no move)
 function advance(g,extra){if(over(g))return -1;if(extra&&!g.rank.includes(g.turn))return g.turn;g.sixes=0;return nextTurn(g);}
 // apply move, returns {captured:[[pi,ti]],finished,extra}
-function applyMove(g,pi,ti,d){const c=g.players[pi];let p=g.tokens[pi][ti];const p0=p;p=p<0?0:p+d;let arrow=false;const ad=arrowDest(g,c,p);if(ad!==p){arrow=ad===51?'home':true;p=ad;}g.tokens[pi][ti]=p;const res={captured:[],finished:p===56,extra:d===6||p===56||arrow,from:null,arrow};
- if(p<=50){const t=trackIdx(c,p);if(!SAFE.has(t)){g.players.forEach((oc,oj)=>{if(ally(g,pi,oj))return;g.tokens[oj].forEach((op,ok)=>{if(op>=0&&op<=50&&trackIdx(oc,op)===t){if(g.shield&&g.shield[oj+':'+ok]){delete g.shield[oj+':'+ok];(res.shielded=res.shielded||[]).push([oj,ok]);return;}g.tokens[oj][ok]=-1;res.captured.push([oj,ok]);if(g.score)g.score[oj]=Math.max(0,g.score[oj]-(op+1));}});});}}
- if(res.captured.length)res.extra=true;
+function applyMove(g,pi,ti,d){const c=g.players[pi];let p=g.tokens[pi][ti];const p0=p;p=p<0?0:Math.min(56,p+d);let arrow=false;const ad=arrowDest(g,c,p);if(ad!==p){arrow=ad===51?'home':true;p=ad;}g.tokens[pi][ti]=p;const RR=R(g);const res={captured:[],finished:p===56,extra:(d===6&&RR.six!==false)||(p===56&&RR.homeBonus!==false)||arrow,from:null,arrow};
+ if(p<=50){const t=trackIdx(c,p);victims(g,pi,t).forEach(([oj,ok])=>{const op=g.tokens[oj][ok];if(g.shield&&g.shield[oj+':'+ok]){delete g.shield[oj+':'+ok];(res.shielded=res.shielded||[]).push([oj,ok]);return;}g.tokens[oj][ok]=-1;res.captured.push([oj,ok]);if(g.score)g.score[oj]=Math.max(0,g.score[oj]-(op+1));});}
+ if(res.captured.length){(g.capd=g.capd||{})[pi]=1;if(RR.capBonus!==false)res.extra=true;}
  if(isBlitz(g)){const S=g.score;let pts=(p0<0?1:p-p0)*BLITZ_PTS.step;if(p===56)pts+=BLITZ_PTS.home;res.captured.forEach(([oj])=>{pts+=BLITZ_PTS.kill;});S[pi]+=pts;res.points=pts;
   // victim loses the points its pawn had walked
 }
@@ -60,37 +83,37 @@ function standings(g){const n=g.players.length,all=[...Array(n).keys()];if(isBli
 function aiPick(g,pi,d){const ms=movable(g,pi,d);if(!ms.length)return -1;let best=ms[0],bs=-1e9;for(const ti of ms){const s=aiScore(g,pi,ti,d);if(s>bs){bs=s;best=ti;}}return best;}
 function aiScore(g,pi,ti,d){const c=g.players[pi];{const p=g.tokens[pi][ti];let np=p<0?0:p+d;let s=0;{const ad=arrowDest(g,c,np);if(ad!==np){np=ad;s+=45;}}if(isBlitz(g))s+=(p<0?1:d)*2;
   if(np===56)s+=100;if(p<0)s+=60;
-  if(np<=50){const t=trackIdx(c,np);g.players.forEach((oc,oj)=>{if(ally(g,pi,oj))return;g.tokens[oj].forEach(op=>{if(op>=0&&op<=50){if(trackIdx(oc,op)===t&&!SAFE.has(t))s+=120+op;
+  if(np<=50){const t=trackIdx(c,np);g.players.forEach((oc,oj)=>{if(ally(g,pi,oj))return;g.tokens[oj].forEach(op=>{if(op>=0&&op<=50){if(trackIdx(oc,op)===t&&!isSafe(g,t))s+=120+op;
      // danger: opponent behind within 6
-     const ot=trackIdx(oc,op);const dist=(t-ot+52)%52;if(dist>0&&dist<=6&&!SAFE.has(t))s-=40;}});});if(SAFE.has(t))s+=25;}
+     const ot=trackIdx(oc,op);const dist=(t-ot+52)%52;if(dist>0&&dist<=6&&!isSafe(g,t))s-=40;}});});if(isSafe(g,t))s+=25;}
   else s+=30;
-  if(p>=0&&p<=50){const t0=trackIdx(c,p);g.players.forEach((oc,oj)=>{if(ally(g,pi,oj))return;g.tokens[oj].forEach(op=>{if(op>=0&&op<=50){const dist=(t0-trackIdx(oc,op)+52)%52;if(dist>0&&dist<=6&&!SAFE.has(t0))s+=35;}});});}
+  if(p>=0&&p<=50){const t0=trackIdx(c,p);g.players.forEach((oc,oj)=>{if(ally(g,pi,oj))return;g.tokens[oj].forEach(op=>{if(op>=0&&op<=50){const dist=(t0-trackIdx(oc,op)+52)%52;if(dist>0&&dist<=6&&!isSafe(g,t0))s+=35;}});});}
   s+=np*0.5+Math.random();return s;}}
 
 // ---- 3.5.5 Ludo Star dice queue: 6 -> roll again; after rolling ends, use the queued values in any order ----
 function qInit(g){if(!g.queue)g.queue=[];return g.queue;}
 // push a rolled value. returns {forfeit, again(roll again), queue}
-function rollPush(g,d){const q=qInit(g);if(d===6)g.sixes=(g.sixes||0)+1;else g.sixes=0;
- if(g.sixes>=3){g.queue=[];return {forfeit:true,again:false,queue:[]};}
- q.push(d);return {forfeit:false,again:d===6,queue:q.slice()};}
+function rollPush(g,d){const q=qInit(g);const six=R(g).six!==false;if(d===6&&six)g.sixes=(g.sixes||0)+1;else g.sixes=0;
+ if(g.sixes>=3&&R(g).three6!==false){g.queue=[];return {forfeit:true,again:false,queue:[]};}
+ q.push(d);return {forfeit:false,again:d===6&&six,queue:q.slice()};}
 // legal (die,token) options, deduped by die value and token position
 function options(g,pi){const q=g.queue||[];const out=[],seen=new Set();q.forEach((d,di)=>{movable(g,pi,d).forEach(ti=>{const k=d+':'+g.tokens[pi][ti];if(seen.has(k))return;seen.add(k);out.push({di,d,ti});});});return out;}
 function canUse(g,pi,di,ti){const q=g.queue||[];return di>=0&&di<q.length&&legal(g,pi,ti,q[di]);}
 // apply queued die di to token ti
 // ---- 3.7 Must Kill mode: skipping an available capture sends the token(s) that could have captured back to the yard ----
 function isKill(g){return !!(g.opts&&g.opts.mode==='kill');}
-function capAt(g,pi,ti,d){if(!legal(g,pi,ti,d))return false;const c=g.players[pi];const p=g.tokens[pi][ti];let np=p<0?0:p+d;np=arrowDest(g,c,np);if(np>50)return false;const t=trackIdx(c,np);if(SAFE.has(t))return false;
- return g.players.some((oc,oj)=>!ally(g,pi,oj)&&g.tokens[oj].some((op,ok)=>op>=0&&op<=50&&trackIdx(oc,op)===t&&!(g.shield&&g.shield[oj+':'+ok])));}
+function capAt(g,pi,ti,d){if(!legal(g,pi,ti,d))return false;const c=g.players[pi];const p=g.tokens[pi][ti];let np=p<0?0:p+d;np=arrowDest(g,c,np);if(np>50)return false;const t=trackIdx(c,np);
+ return victims(g,pi,t).some(([oj,ok])=>!(g.shield&&g.shield[oj+':'+ok]));}
 function missedKills(g,pi,ti,d){if(!isKill(g)||g.noKillRule||capAt(g,pi,ti,d))return [];const out=[];g.tokens[pi].forEach((p,tj)=>{if(tj!==ti&&p>=0&&p<=50&&capAt(g,pi,tj,d))out.push(tj)});
  // 3.8.2: one missed move costs ONE token only - the most advanced of the tokens that could have captured
  if(out.length>1){let b=out[0];for(const tj of out)if(g.tokens[pi][tj]>g.tokens[pi][b])b=tj;return [b]}return out;}
 function useDie(g,pi,di,ti){const d=g.queue[di];const miss=missedKills(g,pi,ti,d);g.queue.splice(di,1);const res=applyMove(g,pi,ti,d);res.d=d;res.di=di;
  if(miss.length){res.penalty=[];miss.forEach(tj=>{const p=g.tokens[pi][tj];if(p>=0&&p<=50){g.tokens[pi][tj]=-1;res.penalty.push(tj)}});}
- const nb=res.done?0:res.captured.length+(res.finished?1:0)+(res.arrow?1:0);// 3.13: every kill and every pawn home is its own extra turn
+ const RR=R(g);const nb=res.done?0:(RR.capBonus!==false?res.captured.length:0)+(res.finished&&RR.homeBonus!==false?1:0)+(res.arrow?1:0);// 3.13: every kill and every pawn home is its own extra turn
 const bonus=nb>0;if(bonus)g.bonus=(g.bonus||0)+nb;res.bonus=bonus;res.nbonus=nb;return res;}
 // queue resolved (empty or no options): bonus roll for same player, else next turn. returns next turn index
 function endDice(g){g.queue=[];if(g.rerolls)for(const k in g.rerolls)g.rerolls[k]=0;if(over(g))return -1;if(g.bonus&&!g.rank.includes(g.turn)){g.bonus--;g.sixes=0;return g.turn;}g.bonus=0;g.sixes=0;return nextTurn(g);}
 function aiChoose(g,pi){const os=options(g,pi);if(!os.length)return null;let b=os[0],bs=-1e9;const K=isKill(g);for(const o of os){let s=aiScore(g,pi,o.ti,o.d)+o.d*0.3;if(K){if(capAt(g,pi,o.ti,o.d))s+=400;else s-=missedKills(g,pi,o.ti,o.d).reduce((a,tj)=>a+150+g.tokens[pi][tj]*3,0);}if(s>bs){bs=s;b=o;}}return b;}
 
-const L={isKill,capAt,missedKills,qInit,rollPush,options,canUse,useDie,endDice,aiChoose,aiScore,HOME_ARROW,arrowDest,isBlitz,BLITZ_TURNS,BLITZ_PTS,REROLL_COSTS,rerollCost,spendReroll,ARROWS,isArrow,arrowHit,isTeam,ally,target,homeCount,winTeam,standings,legal,onRoll,advance,blockAt,COLORS,TRACK,START,SAFE,HOMECOL,BASE,trackIdx,cellOf,canMove,newGame,movable,applyMove,nextTurn,over,aiPick};
+const L={RULE_DEF,RULE_KEYS,UNLOCKS,TURN_SECS,normRules,rules:R,isSafe,canMoveG,victims,rollDie,isKill,capAt,missedKills,qInit,rollPush,options,canUse,useDie,endDice,aiChoose,aiScore,HOME_ARROW,arrowDest,isBlitz,BLITZ_TURNS,BLITZ_PTS,REROLL_COSTS,rerollCost,spendReroll,ARROWS,isArrow,arrowHit,isTeam,ally,target,homeCount,winTeam,standings,legal,onRoll,advance,blockAt,COLORS,TRACK,START,SAFE,HOMECOL,BASE,trackIdx,cellOf,canMove,newGame,movable,applyMove,nextTurn,over,aiPick};
 if(typeof module!=='undefined')module.exports=L;else root.Ludo=L;})(this);
