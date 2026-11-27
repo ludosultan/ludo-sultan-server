@@ -151,6 +151,13 @@ function fidOf(pid){return crypto.createHash('sha256').update('ls-friend:'+pid).
 const fids=new Map();// public friend code -> pid
 const social=require('./social.js')({clients,send,fids,fidOf,rooms,newRoom:(...a)=>newRoom(...a),joinRoom:(...a)=>joinRoom(...a)});
 function seatOf(r,pid){return r.seats.findIndex(s=>s.pid===pid)}
+// Aimed emoji throws reuse the existing chat event with an optional `to` seat (old clients ignore unknown fields).
+// Rate limits (overridable in tests): 2.5s between throws, max 6 per 20s per player.
+const THROW_COOL=+process.env.THROW_COOL||2500,THROW_WINDOW=+process.env.THROW_WINDOW||20000,THROW_MAX=+process.env.THROW_MAX||6;
+function aimedSeat(r,from,to){if(to==null||to==='')return -1;const j=Number(to);if(!Number.isInteger(j)||j<0||j>=r.seats.length||j===from||!r.seats[j])return -1;return j}
+function throwOk(c){const now=Date.now();if(now-(c.throwAt||0)<THROW_COOL)return false;c.throwHits=(c.throwHits||[]).filter(t=>t>=now-THROW_WINDOW);if(c.throwHits.length>=THROW_MAX)return false;c.throwAt=now;c.throwHits.push(now);return true}
+// Paid sticker packs / emotes are owned on the client (P.owned.stk / P.owned.emote). The server wallet tracks coins, gems, and mail/store item ids, not those packs, so paid-throw ownership is enforced client-side only unless that data is added later.
+function throwOwned(/*pid,text*/){return true}
 // 3.14.4 coin entry for friend challenges and private Ludo tables. Same table as quick match (BETS_OK); 0 = free.
 // Coins live on the phone, so the client reports its balance with create/join/challenge and the server refuses obvious shortfalls.
 // Only 3.14.4+ clients (caps.bet) can create or join a coin table: older apps would get the payout without paying the entry.
@@ -199,7 +206,7 @@ wss.on('connection',ws=>{let pid=null;ws.isAlive=true;ws.on('pong',()=>ws.isAliv
      c.diamonds=sp.bal;r.rerolls[pi]=sp.n;clearTimeout(r.timer);doRoll(r,{reroll:true,cost:sp.cost,bal:sp.bal,n:sp.n});break}
    case 'gems':c.diamonds=Math.max(0,Math.min(100000,m.diamonds|0));break;
    case 'move':if(r&&r.mg){mg.handle(m,pid,c,ws,r);break}if(r&&r.started&&seatOf(r,pid)===r.g.turn)doMove(r,{ti:m.ti,di:m.di,pj:m.pj});break;
-   case 'chat':if(r){if(LO.muted(pid)){send(ws,{t:'toast',msg:'You are muted for now.'});break}const i=seatOf(r,pid);if(i>=0)bc(r,{t:'chat',pi:i,fid:c.fid,text:LO.filterText(social.matchChat(c,m.text))})}break;
+   case 'chat':if(r){if(LO.muted(pid)){send(ws,{t:'toast',msg:'You are muted for now.'});break}const i=seatOf(r,pid);if(i>=0){const msg={t:'chat',pi:i,fid:c.fid,text:LO.filterText(social.matchChat(c,m.text))};const to=aimedSeat(r,i,m.to);if(to>=0){if(!throwOk(c)){send(ws,{t:'toast',msg:'Wait a moment'});break}msg.to=to}bc(r,msg)}}break;
    case 'gift':if(r&&r.started){const i=seatOf(r,pid);const to=m.to|0;if(i>=0&&to>=0&&to<r.seats.length&&to!==i)bc(r,{t:'gift',from:i,to,item:String(m.item||'').slice(0,8)})}break;
    case 'away':{c.away=!!m.on;if(r&&r.started){const i=seatOf(r,pid);if(i>=0){bc(r,{t:'away',pi:i,on:!!m.on});schedule(r)}}break}
    case 'sync':if(r&&!r.mg&&seenOver(r,pid)){leaveRoom(pid);send(ws,{t:'left'});break}if(r){sendRoom(r);if(r.started){if(r.mg)mg.onJoinStarted(r,c);else{send(ws,stateMsg(r));resendOver(r,ws,pid)}}}break;
